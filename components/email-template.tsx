@@ -1,5 +1,21 @@
 /**
- * Generates the HTML body for the “Authorise Zillow leads” email.
+ * Simple email template component for basic emails
+ */
+interface SimpleEmailProps {
+  firstName: string
+}
+
+export function EmailTemplate({ firstName }: SimpleEmailProps) {
+  return (
+    <div>
+      <h1>Hello, {firstName}!</h1>
+      <p>This is a test email from your application.</p>
+    </div>
+  )
+}
+
+/**
+ * Generates the HTML body for the "Authorise Zillow leads" email.
  * Using a plain-HTML string avoids React-runtime rendering issues in the Resend SDK.
  */
 interface EmailTemplateProps {
