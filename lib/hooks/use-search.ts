@@ -84,13 +84,20 @@ export function useSearch({ query, enabled = true, limit = 50 }: UseSearchOption
 
   // Perform search when query changes
   useEffect(() => {
-    if (!enabled) return
+    if (!enabled) {
+      clearResults()
+      return
+    }
 
     if (!query.trim()) {
       clearResults()
       return
     }
 
+    // Immediately clear old results to prevent showing stale data
+    setResults([])
+    setError(null)
+    
     // Reset offset for new search
     setOffset(0)
     performSearch(query, 0, false)

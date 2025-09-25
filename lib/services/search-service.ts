@@ -45,21 +45,19 @@ export async function searchConversationsAndMessages({
 
     const searchTerm = `%${query.trim().toLowerCase()}%`
     
-    // Search in conversations (contact names)
+    // Search in conversations (contact names) - using base tables
     const { data: conversationResults, error: convError } = await supabase
-      .from('conversation_summaries')
+      .from('conversations')
       .select(`
         id,
-        contact_name,
-        contact_email,
         phone_number,
-        last_message_content,
-        last_message_at,
-        message_count
+        contacts (
+          name,
+          email
+        )
       `)
       .eq('user_id', userId)
-      .ilike('contact_name', searchTerm)
-      .order('last_message_at', { ascending: false })
+      .or(`contacts.name.ilike.${searchTerm},contacts.email.ilike.${searchTerm},phone_number.ilike.${searchTerm}`)
       .limit(Math.min(limit, 25)) // Limit conversation results
 
     if (convError) {
@@ -93,10 +91,10 @@ export async function searchConversationsAndMessages({
         results.push({
           type: 'conversation',
           conversation_id: conv.id!,
-          conversation_name: conv.contact_name || 'Unknown Contact',
-          contact_email: conv.contact_email,
+          conversation_name: (conv.contacts as any)?.name || 'Unknown Contact',
+          contact_email: (conv.contacts as any)?.email,
           phone_number: conv.phone_number,
-          match_snippet: conv.contact_name || '',
+          match_snippet: (conv.contacts as any)?.name || '',
           match_type: 'conversation_name'
         })
       })
@@ -109,8 +107,15 @@ export async function searchConversationsAndMessages({
       
       // Get conversation details for these IDs
       const { data: messageConversations } = await supabase
-        .from('conversation_summaries')
-        .select('id, contact_name, contact_email, phone_number')
+        .from('conversations')
+        .select(`
+          id, 
+          phone_number,
+          contacts (
+            name,
+            email
+          )
+        `)
         .eq('user_id', userId)
         .in('id', conversationIds)
 
@@ -125,8 +130,8 @@ export async function searchConversationsAndMessages({
         results.push({
           type: 'message',
           conversation_id: msg.conversation_id,
-          conversation_name: conversation?.contact_name || 'Unknown Contact',
-          contact_email: conversation?.contact_email,
+          conversation_name: (conversation?.contacts as any)?.name || 'Unknown Contact',
+          contact_email: (conversation?.contacts as any)?.email,
           phone_number: conversation?.phone_number,
           message_id: msg.id,
           message_content: msg.content,

@@ -11,9 +11,10 @@ import {
   type ConversationListParams,
   type ConversationListResponse,
   type MessageListParams,
-  type MessageListResponse
+  type MessageListResponse,
+  type ConversationWithDetails
 } from '@/lib/services/conversations-service'
-import { ConversationSummary, Message } from '@/lib/database.types'
+import { Message } from '@/lib/database.types'
 
 interface UseConversationsOptions {
   search?: string
@@ -24,7 +25,7 @@ interface UseConversationsOptions {
 }
 
 interface UseConversationsReturn {
-  conversations: ConversationSummary[]
+  conversations: ConversationWithDetails[]
   isLoading: boolean
   error: string | null
   hasMore: boolean
@@ -47,7 +48,7 @@ export function useConversations(options: UseConversationsOptions = {}): UseConv
   } = options
 
   const { user } = useAuth()
-  const [conversations, setConversations] = useState<ConversationSummary[]>([])
+  const [conversations, setConversations] = useState<ConversationWithDetails[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(false)
@@ -126,7 +127,7 @@ export function useConversations(options: UseConversationsOptions = {}): UseConv
     setConversations(prevConversations => 
       prevConversations.map(conv => 
         conv.id === conversationId 
-          ? { ...conv, unread_count: newCount } as ConversationSummary & { unread_count: number }
+          ? { ...conv, unread_count: newCount }
           : conv
       )
     )
@@ -164,7 +165,7 @@ interface UseMessagesReturn {
   page: number
   loadMore: () => Promise<void>
   refresh: () => Promise<void>
-  conversation: ConversationSummary | null
+  conversation: ConversationWithDetails | null
   loadAllMessagesForNavigation: (targetMessageId: string) => Promise<boolean>
 }
 
@@ -173,13 +174,13 @@ export function useMessages(options: UseMessagesOptions = {}): UseMessagesReturn
     conversationId,
     limit = 50,
     orderBy = 'created_at',
-    orderDirection = 'asc',
+    orderDirection = 'asc', // Changed to ASC for proper chat ordering
     enableRealtime = true
   } = options
 
   const { user } = useAuth()
   const [messages, setMessages] = useState<Message[]>([])
-  const [conversation, setConversation] = useState<ConversationSummary | null>(null)
+  const [conversation, setConversation] = useState<ConversationWithDetails | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(false)
@@ -208,10 +209,12 @@ export function useMessages(options: UseMessagesOptions = {}): UseMessagesReturn
 
       setMessages(prev => {
         if (append) {
-          // For infinite scroll (loading older messages), add to the BEGINNING
+          // For infinite scroll: add older messages to the BEGINNING (before existing messages)
+          // Database gives us ASC order (oldest first), so directly prepend
           return [...response.messages, ...prev]
         } else {
-          // For initial load, replace entirely
+          // For initial load: Database returns ASC order (oldest first)
+          // For chat UI, this is perfect - oldest first, newest last
           return response.messages
         }
       })
@@ -261,30 +264,26 @@ export function useMessages(options: UseMessagesOptions = {}): UseMessagesReturn
 
   // Load all messages for navigation to specific message
   const loadAllMessagesForNavigation = useCallback(async (targetMessageId: string): Promise<boolean> => {
-    if (!conversationId || !user?.id) return false
+    if (!conversationId) return false
 
     try {
       setIsLoading(true)
       setError(null)
 
+      // Import the navigation service dynamically
+      const { loadAllMessagesForNavigation: loadMessages } = await import('@/lib/services/navigation-service')
+      
       // Load all messages in chronological order
-      const result = await getMessages({
-        conversationId,
-        userId: user.id,
-        page: 1,
-        limit: 1000, // Load a large number to get all messages
-        orderBy: 'created_at',
-        orderDirection: 'asc'
-      })
-
-      if (result.messages) {
-        setMessages(result.messages)
-        setTotal(result.total)
+      const allMessages = await loadMessages(conversationId)
+      
+      if (allMessages) {
+        setMessages(allMessages)
+        setTotal(allMessages.length)
         setHasMore(false) // No more pages needed since we loaded all
         setPage(1)
         
         // Check if target message exists
-        const targetExists = result.messages.some(msg => msg.id === targetMessageId)
+        const targetExists = allMessages.some(msg => msg.id === targetMessageId)
         return targetExists
       }
 
@@ -296,7 +295,7 @@ export function useMessages(options: UseMessagesOptions = {}): UseMessagesReturn
     } finally {
       setIsLoading(false)
     }
-  }, [conversationId, user?.id])
+  }, [conversationId])
 
   // Real-time subscriptions
   useEffect(() => {

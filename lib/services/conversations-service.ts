@@ -1,5 +1,33 @@
 import { supabase } from '@/lib/supabase/client'
-import { Database, ConversationSummary, Message } from '@/lib/database.types'
+import { Database, Message } from '@/lib/database.types'
+
+// New type for conversation with real-time data from base tables
+export interface ConversationWithDetails {
+  // Base conversation fields
+  id: string
+  user_id: string | null
+  contact_id: string | null
+  phone_number: string
+  status: string
+  created_at: string
+  updated_at: string
+  botpress_conversation_id: string | null
+  botpress_user_id: string | null
+  twilio_conversation_sid: string | null
+  metadata: any
+  
+  // Contact fields (joined)
+  contact_name: string | null
+  contact_email: string | null
+  contact_lead_status: string | null
+  contact_lead_source: string | null
+  
+  // Latest message fields (calculated)
+  last_message_content: string | null
+  last_message_at: string | null
+  message_count: number
+  unread_count: number
+}
 
 export interface ConversationListParams {
   userId: string
@@ -11,7 +39,7 @@ export interface ConversationListParams {
 }
 
 export interface ConversationListResponse {
-  conversations: ConversationSummary[]
+  conversations: ConversationWithDetails[]
   total: number
   page: number
   limit: number
@@ -64,64 +92,151 @@ export async function getConversations(params: ConversationListParams): Promise<
   }
 
   try {
+    // Build the query using base conversations table with joins
     let query = supabase
-      .from('conversation_summaries')
-      .select('*', { count: 'exact' })
+      .from('conversations')
+      .select(`
+        *,
+        contacts (
+          name,
+          email,
+          lead_status,
+          lead_source
+        )
+      `, { count: 'exact' })
       .eq('user_id', userId)
 
-    // Add search filter if provided
+    // Add search filter if provided - search in conversation phone and joined contact fields
     if (search.trim()) {
-      query = query.or(`contact_name.ilike.%${search}%,contact_email.ilike.%${search}%,phone_number.ilike.%${search}%,last_message_content.ilike.%${search}%`)
+      const searchTerm = `%${search.trim()}%`
+      query = query.or(`phone_number.ilike.${searchTerm},contacts.name.ilike.${searchTerm},contacts.email.ilike.${searchTerm}`)
     }
-
-    // Add ordering
-    query = query.order(orderBy, { ascending: orderDirection === 'asc' })
 
     // Add pagination
     const from = (page - 1) * limit
     const to = from + limit - 1
     query = query.range(from, to)
 
-    const { data, error, count } = await query
+    const { data: conversationsData, error: conversationsError, count } = await query
 
-    if (error) {
-      console.error('Error fetching conversations:', error)
-      throw new Error(`Failed to fetch conversations: ${error.message}`)
+    if (conversationsError) {
+      console.error('Error fetching conversations:', conversationsError)
+      throw new Error(`Failed to fetch conversations: ${conversationsError.message}`)
     }
 
-    // Fetch unread counts for all conversations in a single query
-    const conversationIds = (data || []).map(c => c.id).filter(Boolean)
+    const conversations = conversationsData || []
+    const conversationIds = conversations.map(c => c.id)
+
+    // Get latest message info for each conversation in a single query
+    let latestMessages: Record<string, { content: string, created_at: string }> = {}
+    let messageCounts: Record<string, number> = {}
     let unreadCounts: Record<string, number> = {}
-    
+
     if (conversationIds.length > 0) {
-      const { data: unreadData, error: unreadError } = await supabase
+      // Get latest message for each conversation using a more reliable approach
+      const latestMessagePromises = conversationIds.map(async (conversationId) => {
+        const { data, error } = await supabase
+          .from('messages')
+          .select('conversation_id, content, created_at')
+          .eq('conversation_id', conversationId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single()
+        
+        if (error || !data) return null
+        
+        return {
+          conversation_id: conversationId,
+          content: data.content,
+          created_at: data.created_at
+        }
+      })
+
+      const latestMsgResults = await Promise.all(latestMessagePromises)
+      
+      latestMsgResults.forEach(result => {
+        if (result) {
+          latestMessages[result.conversation_id] = {
+            content: result.content,
+            created_at: result.created_at
+          }
+        }
+      })
+
+      // Get message counts for each conversation
+      const { data: msgCountData } = await supabase
+        .from('messages')
+        .select('conversation_id')
+        .in('conversation_id', conversationIds)
+
+      if (msgCountData) {
+        messageCounts = msgCountData.reduce((acc, msg) => {
+          acc[msg.conversation_id] = (acc[msg.conversation_id] || 0) + 1
+          return acc
+        }, {} as Record<string, number>)
+      }
+
+      // Get unread counts for each conversation
+      const { data: unreadData } = await supabase
         .from('messages')
         .select('conversation_id')
         .in('conversation_id', conversationIds)
         .eq('is_read', false)
 
-      if (unreadError) {
-        console.error('Error fetching unread counts:', unreadError)
+      if (unreadData) {
+        unreadCounts = unreadData.reduce((acc, msg) => {
+          acc[msg.conversation_id] = (acc[msg.conversation_id] || 0) + 1
+          return acc
+        }, {} as Record<string, number>)
       }
-
-      // Count unread messages per conversation
-      unreadCounts = (unreadData || []).reduce((acc, message) => {
-        acc[message.conversation_id] = (acc[message.conversation_id] || 0) + 1
-        return acc
-      }, {} as Record<string, number>)
     }
 
-    // Add unread counts to conversations
-    const conversationsWithUnread = (data || []).map(conversation => ({
-      ...conversation,
-      unread_count: unreadCounts[conversation.id!] || 0
+    // Transform the data to match our interface
+    const conversationsWithDetails: ConversationWithDetails[] = conversations.map(conv => ({
+      id: conv.id,
+      user_id: conv.user_id,
+      contact_id: conv.contact_id,
+      phone_number: conv.phone_number,
+      status: conv.status,
+      created_at: conv.created_at,
+      updated_at: conv.updated_at,
+      botpress_conversation_id: conv.botpress_conversation_id,
+      botpress_user_id: conv.botpress_user_id,
+      twilio_conversation_sid: conv.twilio_conversation_sid,
+      metadata: conv.metadata,
+      
+      // Contact fields from joined data
+      contact_name: (conv.contacts as any)?.name || null,
+      contact_email: (conv.contacts as any)?.email || null,
+      contact_lead_status: (conv.contacts as any)?.lead_status || null,
+      contact_lead_source: (conv.contacts as any)?.lead_source || null,
+      
+      // Latest message fields (always fresh)
+      last_message_content: latestMessages[conv.id]?.content || null,
+      last_message_at: latestMessages[conv.id]?.created_at || null,
+      message_count: messageCounts[conv.id] || 0,
+      unread_count: unreadCounts[conv.id] || 0
     }))
 
+    // Sort by the requested field
+    conversationsWithDetails.sort((a, b) => {
+      let aValue = orderBy === 'last_message_at' ? a.last_message_at : a.created_at
+      let bValue = orderBy === 'last_message_at' ? b.last_message_at : b.created_at
+      
+      // Handle null values - put them last
+      if (!aValue && !bValue) return 0
+      if (!aValue) return 1
+      if (!bValue) return -1
+      
+      const comparison = new Date(aValue).getTime() - new Date(bValue).getTime()
+      return orderDirection === 'desc' ? -comparison : comparison
+    })
+
     const total = count || 0
-    const hasMore = from + limit < total
+    const hasMore = (page - 1) * limit + conversationsWithDetails.length < total
 
     return {
-      conversations: conversationsWithUnread,
+      conversations: conversationsWithDetails,
       total,
       page,
       limit,
@@ -146,28 +261,49 @@ export async function getMessages(params: MessageListParams): Promise<MessageLis
   } = params
 
   try {
+    // First, get total count
+    const { count } = await supabase
+      .from('messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('conversation_id', conversationId)
+
+    const total = count || 0
+    
+    // For chat interface, implement reverse pagination
+    // Page 1 should get the LATEST messages, Page 2 should get older messages
+    let from: number
+    let to: number
+    
+    if (orderDirection === 'asc') {
+      // Calculate offset from the end for reverse pagination
+      const offsetFromEnd = (page - 1) * limit
+      from = Math.max(0, total - limit - offsetFromEnd)
+      to = Math.max(limit - 1, total - 1 - offsetFromEnd)
+    } else {
+      // Regular pagination for DESC order
+      from = (page - 1) * limit
+      to = from + limit - 1
+    }
+
     let query = supabase
       .from('messages')
-      .select('*', { count: 'exact' })
+      .select('*')
       .eq('conversation_id', conversationId)
 
     // Add ordering
     query = query.order(orderBy, { ascending: orderDirection === 'asc' })
 
     // Add pagination
-    const from = (page - 1) * limit
-    const to = from + limit - 1
     query = query.range(from, to)
 
-    const { data, error, count } = await query
+    const { data, error } = await query
 
     if (error) {
       console.error('Error fetching messages:', error)
       throw new Error(`Failed to fetch messages: ${error.message}`)
     }
 
-    const total = count || 0
-    const hasMore = from + limit < total
+    const hasMore = orderDirection === 'asc' ? from > 0 : from + limit < total
 
     return {
       messages: data || [],
@@ -185,11 +321,19 @@ export async function getMessages(params: MessageListParams): Promise<MessageLis
 /**
  * Get a single conversation summary by ID
  */
-export async function getConversationById(conversationId: string, userId: string): Promise<ConversationSummary | null> {
+export async function getConversationById(conversationId: string, userId: string): Promise<ConversationWithDetails | null> {
   try {
-    const { data, error } = await supabase
-      .from('conversation_summaries')
-      .select('*')
+    const { data: conversationData, error } = await supabase
+      .from('conversations')
+      .select(`
+        *,
+        contacts (
+          name,
+          email,
+          lead_status,
+          lead_source
+        )
+      `)
       .eq('id', conversationId)
       .eq('user_id', userId)
       .single()
@@ -203,7 +347,56 @@ export async function getConversationById(conversationId: string, userId: string
       throw new Error(`Failed to fetch conversation: ${error.message}`)
     }
 
-    return data
+    // Get latest message info for this conversation
+    const { data: latestMsgData } = await supabase
+      .from('messages')
+      .select('content, created_at')
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
+
+    // Get message count
+    const { count: messageCount } = await supabase
+      .from('messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('conversation_id', conversationId)
+
+    // Get unread count
+    const { count: unreadCount } = await supabase
+      .from('messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('conversation_id', conversationId)
+      .eq('is_read', false)
+
+    // Transform to ConversationWithDetails
+    const result: ConversationWithDetails = {
+      id: conversationData.id,
+      user_id: conversationData.user_id,
+      contact_id: conversationData.contact_id,
+      phone_number: conversationData.phone_number,
+      status: conversationData.status,
+      created_at: conversationData.created_at,
+      updated_at: conversationData.updated_at,
+      botpress_conversation_id: conversationData.botpress_conversation_id,
+      botpress_user_id: conversationData.botpress_user_id,
+      twilio_conversation_sid: conversationData.twilio_conversation_sid,
+      metadata: conversationData.metadata,
+      
+      // Contact fields from joined data
+      contact_name: (conversationData.contacts as any)?.name || null,
+      contact_email: (conversationData.contacts as any)?.email || null,
+      contact_lead_status: (conversationData.contacts as any)?.lead_status || null,
+      contact_lead_source: (conversationData.contacts as any)?.lead_source || null,
+      
+      // Latest message fields
+      last_message_content: latestMsgData?.content || null,
+      last_message_at: latestMsgData?.created_at || null,
+      message_count: messageCount || 0,
+      unread_count: unreadCount || 0
+    }
+
+    return result
   } catch (error) {
     console.error('Error in getConversationById:', error)
     throw error

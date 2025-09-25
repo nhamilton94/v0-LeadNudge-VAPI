@@ -7,17 +7,17 @@ import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { useConversations } from "@/lib/hooks/use-conversations"
 import { useSearch } from "@/lib/hooks/use-search"
-import { ConversationSummary } from "@/lib/database.types"
+import { ConversationWithDetails } from "@/lib/services/conversations-service"
 import { MessageSquare, User } from "lucide-react"
 
 interface ConversationListProps {
   selectedConversationId: string | null
-  onSelect: (conversation: ConversationSummary) => void
+  onSelect: (conversation: ConversationWithDetails) => void
   searchQuery: string
   searchInput: string
   onAutoSelectFirst?: () => void
   onUpdateUnreadCount?: (conversationId: string, count: number) => void
-  onMessageSelect?: (conversationId: string, messageId: string) => void
+  onMessageSelect?: (conversationId: string, messageId: string, searchResult?: any) => void
 }
 
 export const ConversationList = memo(function ConversationList({ 
@@ -54,12 +54,20 @@ export const ConversationList = memo(function ConversationList({
     error: searchError,
     total: searchTotal,
     hasMore: searchHasMore,
-    loadMore: loadMoreSearch
+    loadMore: loadMoreSearch,
+    clearResults: clearSearchResults
   } = useSearch({
     query: searchQuery,
     enabled: isSearching,
     limit: 50
   })
+
+  // Clear search results when switching back to normal conversations
+  useEffect(() => {
+    if (!isSearching && searchResults.length > 0) {
+      clearSearchResults()
+    }
+  }, [isSearching, searchResults.length, clearSearchResults])
 
   // Determine which data to use
   const isLoading = isSearching ? searchLoading : conversationsLoading
@@ -92,25 +100,31 @@ export const ConversationList = memo(function ConversationList({
   const handleSearchResultSelect = useCallback((result: any) => {
     if (result.type === 'conversation') {
       // Find the full conversation object or create a minimal one
-      const conversation: ConversationSummary = {
+      const conversation: ConversationWithDetails = {
         id: result.conversation_id,
         user_id: '', // Will be filled by the parent
         contact_id: null,
+        phone_number: result.phone_number,
+        status: 'active',
+        created_at: '',
+        updated_at: '',
+        botpress_conversation_id: null,
+        botpress_user_id: null,
+        twilio_conversation_sid: null,
+        metadata: null,
         contact_name: result.conversation_name,
         contact_email: result.contact_email,
-        phone_number: result.phone_number,
+        contact_lead_status: null,
+        contact_lead_source: null,
         last_message_content: null,
         last_message_at: null,
         message_count: 0,
-        botpress_conversation_id: null,
-        botpress_user_id: null,
-        created_at: '',
-        updated_at: ''
+        unread_count: 0
       }
       onSelect(conversation)
     } else if (result.type === 'message' && onMessageSelect) {
-      // Handle message selection - navigate to specific message
-      onMessageSelect(result.conversation_id, result.message_id!)
+      // Handle message selection - navigate to specific message with search result data
+      onMessageSelect(result.conversation_id, result.message_id!, result)
     }
   }, [onSelect, onMessageSelect])
 
@@ -187,14 +201,6 @@ export const ConversationList = memo(function ConversationList({
         <p className="text-sm text-muted-foreground mb-2">
           {searchQuery ? 'No conversations found' : 'No conversations yet'}
         </p>
-        {searchQuery && (
-          <button 
-            onClick={() => onSearchChange('')}
-            className="text-xs text-primary hover:underline"
-          >
-            Clear search
-          </button>
-        )}
       </div>
     )
   }

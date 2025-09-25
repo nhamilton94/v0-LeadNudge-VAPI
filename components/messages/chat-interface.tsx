@@ -12,14 +12,15 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { useMessages } from "@/lib/hooks/use-conversations"
-import { ConversationSummary, Message } from "@/lib/database.types"
+import { Message } from "@/lib/database.types"
+import { ConversationWithDetails } from "@/lib/services/conversations-service"
 import { markMessagesAsRead, markSpecificMessagesAsRead } from "@/lib/services/conversations-service"
 import { getContactByConversationId, Contact } from "@/lib/services/contacts-service"
 import { useAuth } from "@/components/auth/supabase-auth-provider"
 
 interface ChatInterfaceProps {
   conversationId: string
-  conversation: ConversationSummary
+  conversation: ConversationWithDetails
   targetMessageId?: string | null
   onMessagesRead?: () => void
   onMessageNavigated?: () => void
@@ -43,7 +44,8 @@ export function ChatInterface({ conversationId, conversation, targetMessageId, o
     hasMore,
     loadMore,
     refresh,
-    loadAllMessagesForNavigation
+    loadAllMessagesForNavigation,
+    conversation: fetchedConversation
   } = useMessages({
     conversationId,
     limit: 50,
@@ -59,17 +61,18 @@ export function ChatInterface({ conversationId, conversation, targetMessageId, o
     if (conversationId !== previousConversationId) {
       setIsInitialLoad(true)
       setPreviousConversationId(conversationId)
-      // Clear any existing target message when switching conversations
-      if (targetMessageId && onMessageNavigated) {
-        onMessageNavigated()
-      }
     }
-  }, [conversationId, previousConversationId, targetMessageId, onMessageNavigated])
+  }, [conversationId, previousConversationId])
 
   // Handle message navigation when targetMessageId is provided
   useEffect(() => {
-    if (targetMessageId && conversationId && !isLoading) {
+    if (targetMessageId && conversationId) {
       const navigateToMessage = async () => {
+        // Wait for messages to load if not already loaded
+        if (isLoading || messages.length === 0) {
+          setTimeout(() => navigateToMessage(), 100)
+          return
+        }
         // First, check if the target message is already loaded
         const targetElement = document.querySelector(`[data-message-id="${targetMessageId}"]`)
         
@@ -94,11 +97,12 @@ export function ChatInterface({ conversationId, conversation, targetMessageId, o
 
       navigateToMessage()
     }
-  }, [targetMessageId, conversationId, isLoading, loadAllMessagesForNavigation, onMessageNavigated])
+  }, [targetMessageId, conversationId, isLoading, messages.length, loadAllMessagesForNavigation, onMessageNavigated])
+    conversation: fetchedConversation
 
-  // Helper function to scroll to target message (clean, no visual effects)
+  // Helper function to scroll to target message (instant, no animation)
   const scrollToTargetMessage = (targetElement: Element) => {
-    targetElement.scrollIntoView({ behavior: "smooth", block: "center" })
+    targetElement.scrollIntoView({ behavior: "instant", block: "center" })
     
     if (onMessageNavigated) onMessageNavigated()
   }
@@ -294,15 +298,64 @@ export function ChatInterface({ conversationId, conversation, targetMessageId, o
     return () => container.removeEventListener('scroll', handleScroll)
   }, [hasMore, isLoadingMore, loadMore])
 
-  // Format timestamp for display
-  const formatTimestamp = (timestamp: string) => {
+  // Smart timestamp formatting for messages
+  const formatTimestamp = useCallback((timestamp: string) => {
     const date = new Date(timestamp)
-    return date.toLocaleTimeString('en-US', { 
+    const now = new Date()
+    
+    // Start of today
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    
+    // Start of yesterday
+    const startOfYesterday = new Date(startOfToday)
+    startOfYesterday.setDate(startOfYesterday.getDate() - 1)
+    
+    // Start of this week (Sunday)
+    const startOfWeek = new Date(startOfToday)
+    startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay())
+    
+    // Start of this year
+    const startOfYear = new Date(now.getFullYear(), 0, 1)
+    
+    const timeFormat = date.toLocaleTimeString('en-US', { 
       hour: 'numeric', 
       minute: '2-digit',
       hour12: true 
     })
-  }
+    
+    // Today - show only time
+    if (date >= startOfToday) {
+      return timeFormat
+    }
+    
+    // Yesterday - show "Yesterday" + time
+    if (date >= startOfYesterday) {
+      return `Yesterday ${timeFormat}`
+    }
+    
+    // This week - show day + time
+    if (date >= startOfWeek) {
+      const dateFormat = date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+      return `${dateFormat}, ${timeFormat}`
+    }
+    
+    // This year - show month/day + time
+    if (date >= startOfYear) {
+      const monthDay = date.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric' 
+      })
+      return `${monthDay}, ${timeFormat}`
+    }
+    
+    // Previous years - show full date + time
+    const fullDate = date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric',
+      year: 'numeric'
+    })
+    return `${fullDate}, ${timeFormat}`
+  }, [])
 
   // Get contact initials for avatar fallback
   const getInitials = (name: string | null) => {
@@ -313,8 +366,8 @@ export function ChatInterface({ conversationId, conversation, targetMessageId, o
   // Mock contact details for the sheet (to be replaced with real contact data)
   const mockContactDetails = {
     id: 1,
-    name: conversation.contact_name || 'Unknown Contact',
-    image: `https://api.dicebear.com/7.x/initials/svg?seed=${conversation.contact_name}`,
+    name: (fetchedConversation && fetchedConversation.id === conversationId ? fetchedConversation : conversation).contact_name || 'Unknown Contact',
+    image: `https://api.dicebear.com/7.x/initials/svg?seed=${(fetchedConversation && fetchedConversation.id === conversationId ? fetchedConversation : conversation).contact_name}`,
     status: 'online',
     title: 'Potential Tenant',
     email: conversation.contact_email || '',
@@ -333,19 +386,19 @@ export function ChatInterface({ conversationId, conversation, targetMessageId, o
           <div className="relative">
             <Avatar>
               <AvatarImage 
-                src={`https://api.dicebear.com/7.x/initials/svg?seed=${conversation.contact_name}`} 
-                alt={conversation.contact_name || 'Contact'} 
+                src={`https://api.dicebear.com/7.x/initials/svg?seed=${(fetchedConversation && fetchedConversation.id === conversationId ? fetchedConversation : conversation).contact_name}`} 
+                alt={(fetchedConversation && fetchedConversation.id === conversationId ? fetchedConversation : conversation).contact_name || 'Contact'} 
               />
               <AvatarFallback>
-                {getInitials(conversation.contact_name)}
+                {getInitials((fetchedConversation && fetchedConversation.id === conversationId ? fetchedConversation : conversation).contact_name)}
               </AvatarFallback>
             </Avatar>
             <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-background bg-green-500" />
           </div>
           <div>
-            <div className="font-semibold">{conversation.contact_name || 'Unknown Contact'}</div>
+            <div className="font-semibold">{(fetchedConversation && fetchedConversation.id === conversationId ? fetchedConversation : conversation).contact_name || 'Unknown Contact'}</div>
             <div className="text-sm text-muted-foreground">
-              {conversation.phone_number || 'No phone number'}
+              {(fetchedConversation && fetchedConversation.id === conversationId ? fetchedConversation : conversation).phone_number || 'No phone number'}
             </div>
           </div>
         </div>

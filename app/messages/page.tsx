@@ -7,11 +7,11 @@ import { Input } from "@/components/ui/input"
 import { ConversationList } from "@/components/messages/conversation-list"
 import { ChatInterface } from "@/components/messages/chat-interface"
 import { cn } from "@/lib/utils"
-import { ConversationSummary } from "@/lib/database.types"
+import { ConversationWithDetails } from "@/lib/services/conversations-service"
 import { useConversations } from "@/lib/hooks/use-conversations"
 
 export default function MessagesPage() {
-  const [selectedConversation, setSelectedConversation] = useState<ConversationSummary | null>(null)
+  const [selectedConversation, setSelectedConversation] = useState<ConversationWithDetails | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [searchInput, setSearchInput] = useState("")
   const [targetMessageId, setTargetMessageId] = useState<string | null>(null)
@@ -32,7 +32,7 @@ export default function MessagesPage() {
     enableRealtime: true
   })
 
-  const handleConversationSelect = useCallback((conversation: ConversationSummary) => {
+  const handleConversationSelect = useCallback((conversation: ConversationWithDetails) => {
     setSelectedConversation(conversation)
   }, [])
 
@@ -56,16 +56,47 @@ export default function MessagesPage() {
     }
   }
 
-  const handleMessageSelect = useCallback((conversationId: string, messageId: string) => {
+  const handleMessageSelect = useCallback(async (conversationId: string, messageId: string, searchResult?: any) => {
     // Find the conversation and select it
-    const conversation = conversations.find(c => c.id === conversationId)
-    if (conversation) {
-      setSelectedConversation(conversation)
-      setTargetMessageId(messageId)
-      // Clear search when navigating to message
-      setSearchInput("")
-      setSearchQuery("")
+    let conversation = conversations.find(c => c.id === conversationId)
+    
+    if (!conversation) {
+      // If conversation not found in current list, create a conversation object with search data
+      // The useMessages hook in ChatInterface will load the full conversation details
+      conversation = {
+        id: conversationId,
+        user_id: null,
+        contact_id: null,
+        phone_number: searchResult?.phone_number || '',
+        status: 'active',
+        created_at: '',
+        updated_at: '',
+        botpress_conversation_id: null,
+        botpress_user_id: null,
+        twilio_conversation_sid: null,
+        metadata: null,
+        contact_name: searchResult?.conversation_name || null, // Use search data if available
+        contact_email: searchResult?.contact_email || null,
+        contact_lead_status: null,
+        contact_lead_source: null,
+        last_message_content: null,
+        last_message_at: null,
+        message_count: 0,
+        unread_count: 0
+      }
     }
+    
+    // Use React 18 batching or ensure proper state update order
+    setSelectedConversation(conversation)
+    
+    // Small delay to ensure conversation selection is processed first
+    setTimeout(() => {
+      setTargetMessageId(messageId)
+    }, 10)
+    
+    // Clear search when navigating to message
+    setSearchInput("")
+    setSearchQuery("")
   }, [conversations])
 
   return (
