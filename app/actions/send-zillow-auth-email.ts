@@ -1,7 +1,7 @@
 "use server"
 
 import { Resend } from "resend"
-import { EmailTemplate } from "@/components/email-template"
+import { renderZillowAuthEmail } from "@/components/email-template"
 
 interface Params {
   firstName: string
@@ -27,7 +27,7 @@ export async function sendZillowAuthEmail({ firstName, lastName, userPremierEmai
     to: [zillowEmail],
     cc: [userPremierEmail],
     subject,
-    react: EmailTemplate({ firstName, lastName, zillowEmail, webhookUrl }),
+    html: renderZillowAuthEmail({ firstName, lastName, userEmail: userPremierEmail, webhookUrl }),
   })
 
   if (error) throw new Error(`Resend error: ${error.message}`)

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useChat } from "ai/react"
+import { useChat } from "@ai-sdk/react"
 import { Search } from "lucide-react"
 
 import { Input } from "@/components/ui/input"
@@ -160,7 +160,9 @@ const conversations = [
 
 export default function MessagesPage() {
   const [selectedConversation, setSelectedConversation] = useState(conversations[0])
-  const { input, handleInputChange, handleSubmit } = useChat()
+  const { input, setInput, handleSubmit } = useChat({
+    api: '/api/chat'
+  })
 
   return (
     <div className="flex h-[calc(100vh-0px)] flex-col">
@@ -185,7 +187,7 @@ export default function MessagesPage() {
               conversation={selectedConversation}
               messages={selectedConversation.messages}
               input={input}
-              onInputChange={handleInputChange}
+              onInputChange={(e) => setInput(e.target.value)}
               onSubmit={handleSubmit}
             />
           ) : (

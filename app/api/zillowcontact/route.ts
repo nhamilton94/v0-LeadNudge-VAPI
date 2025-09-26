@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/utils/supabase/server"
+import axios from "axios"
 
 interface ZillowContactRequest {
   phone: string
@@ -105,13 +106,59 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Get the created/updated contact
+    const contact = contactResult[0]
+    if (!contact) {
+      return NextResponse.json(
+        { error: "Failed to retrieve contact after upsert" },
+        { status: 500 }
+      )
+    }
+
+    // Create qualification_status record with automation enabled by default
+    const { error: qualError } = await supabase
+      .from("qualification_status")
+      .upsert({
+        contact_id: contact.id,
+        qualification_status: "not_started",
+        qualification_progress: 0,
+        automation_enabled: true,
+        updated_by: profileData.id
+      }, {
+        onConflict: "contact_id"
+      })
+
+    if (qualError) {
+      console.error("Error creating qualification_status:", qualError)
+      // Continue even if this fails - we still want to return the contact
+    }
+
+    // If automation is enabled, initiate Botpress outreach
+    try {
+      const initiateResponse = await axios.post(
+        `${request.nextUrl.protocol}//${request.nextUrl.host}/api/botpress/initiate-outreach`,
+        { contactId: contact.id },
+        {
+          headers: { "Content-Type": "application/json" },
+          timeout: 10000 // 10 second timeout
+        }
+      )
+
+      if (initiateResponse.status !== 200) {
+        console.error("Botpress outreach initiation failed:", initiateResponse.data)
+      }
+    } catch (botpressError) {
+      console.error("Error initiating Botpress outreach:", botpressError)
+      // Don't fail the webhook if Botpress fails - we still created the contact successfully
+    }
+
     // Return success response
     return NextResponse.json(
       {
         success: true,
         message: "Contact created/updated successfully",
         data: {
-          contact: contactResult,
+          contact: contact,
           profile: {
             id: profileData.id,
             email: profileData.email,
