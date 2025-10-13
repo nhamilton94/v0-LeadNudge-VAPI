@@ -14,6 +14,7 @@ import {
   Users,
   LogOut,
   Settings,
+  Puzzle,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -50,13 +51,18 @@ const sidebarItems = [
   },
   {
     title: "Integrations",
-    icon: Settings,
+    icon: Puzzle,
     href: "/integrations",
   },
   {
     title: "Reports",
     icon: LayoutDashboard,
     href: "/reports",
+  },
+  {
+    title: "Settings",
+    icon: Settings,
+    href: "/settings",
   },
 ]
 
