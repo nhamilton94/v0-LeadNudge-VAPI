@@ -451,22 +451,21 @@ WHERE organization_id IS NULL;
 -- =====================================================
 -- 15. MIGRATE EXISTING USERS TO ROLES
 -- =====================================================
--- Assign organization-level roles based on existing team role
--- If profiles.role = 'manager' or 'broker', make them admin
--- Otherwise, make them regular user
+-- Assign admin role to ALL existing users in default organization
+-- This allows everyone to use Settings Tab and invite others
+-- Later, when multi-org is implemented, roles can be adjusted per organization
 
 DO $$
 DECLARE
     admin_role_id UUID;
-    user_role_id UUID;
     profile_record RECORD;
 BEGIN
-    -- Get role IDs
+    -- Get admin role ID
     SELECT id INTO admin_role_id FROM public.roles WHERE name = 'admin';
-    SELECT id INTO user_role_id FROM public.roles WHERE name = 'user';
     
-    -- Loop through all profiles
-    FOR profile_record IN SELECT id, role FROM public.profiles
+    -- Loop through all profiles and assign admin role to everyone
+    -- This allows all existing users to manage the Settings Tab and invite others
+    FOR profile_record IN SELECT id FROM public.profiles
     LOOP
         -- Check if user already has an organization role
         IF NOT EXISTS (
@@ -474,17 +473,10 @@ BEGIN
             WHERE user_id = profile_record.id 
             AND organization_id = '00000000-0000-0000-0000-000000000001'
         ) THEN
-            -- Assign admin role if they're a manager/broker, otherwise user role
-            -- Note: This assumes profiles.role is a text/enum field
-            IF profile_record.role::text IN ('manager', 'broker', 'admin') THEN
-                INSERT INTO public.user_roles (user_id, role_id, organization_id)
-                VALUES (profile_record.id, admin_role_id, '00000000-0000-0000-0000-000000000001')
-                ON CONFLICT (user_id, role_id, organization_id) DO NOTHING;
-            ELSE
-                INSERT INTO public.user_roles (user_id, role_id, organization_id)
-                VALUES (profile_record.id, user_role_id, '00000000-0000-0000-0000-000000000001')
-                ON CONFLICT (user_id, role_id, organization_id) DO NOTHING;
-            END IF;
+            -- Assign admin role to everyone (default organization setup)
+            INSERT INTO public.user_roles (user_id, role_id, organization_id)
+            VALUES (profile_record.id, admin_role_id, '00000000-0000-0000-0000-000000000001')
+            ON CONFLICT (user_id, role_id, organization_id) DO NOTHING;
         END IF;
     END LOOP;
 END $$;

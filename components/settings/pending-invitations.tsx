@@ -30,11 +30,13 @@ import {
 interface PendingInvitationsProps {
   invitations: Invitation[];
   onInvitationsChange: (invitations: Invitation[]) => void;
+  onRefresh?: () => void;
 }
 
 export default function PendingInvitations({
   invitations,
   onInvitationsChange,
+  onRefresh,
 }: PendingInvitationsProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -44,12 +46,21 @@ export default function PendingInvitations({
   const [invitationToCancel, setInvitationToCancel] = useState<Invitation | null>(null);
   const { toast } = useToast();
 
-  // Memoize filtered invitations
+  // Memoize filtered invitations - ONLY show pending invitations
   const filteredInvitations = useMemo(() => {
-    return invitations.filter(invitation =>
-      invitation.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      invitation.invited_by_name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    return invitations.filter(invitation => {
+      // Only show pending invitations (filter out cancelled, accepted, expired)
+      if (invitation.status !== 'pending') {
+        return false;
+      }
+      
+      // Apply search filter
+      const matchesSearch = 
+        invitation.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (invitation.invitedBy || invitation.invited_by_name || '').toLowerCase().includes(searchQuery.toLowerCase());
+      
+      return matchesSearch;
+    });
   }, [invitations, searchQuery]);
 
   // Memoize pagination calculations
@@ -69,35 +80,93 @@ export default function PendingInvitations({
   }, [searchQuery, itemsPerPage]);
 
   // Memoize handlers to prevent child re-renders
-  const handleResend = useCallback((invitation: Invitation) => {
+  const handleResend = useCallback(async (invitation: Invitation) => {
     setResendingId(invitation.id);
 
-    // Mock API call
-    setTimeout(() => {
-      setResendingId(null);
+    try {
+      // Call API to resend invitation
+      const response = await fetch(`/api/settings/invitations/${invitation.id}/resend`, {
+        method: 'POST',
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to resend invitation');
+      }
+
       toast({
         title: 'Invitation resent',
         description: `A new invitation has been sent to ${invitation.email}.`,
       });
-    }, 1000);
-  }, [toast]);
 
-  const handleCancelConfirm = useCallback(() => {
+      // Refresh parent data if callback provided
+      if (onRefresh) {
+        onRefresh();
+      }
+    } catch (error) {
+      console.error('Error resending invitation:', error);
+      toast({
+        title: 'Failed to resend invitation',
+        description: error instanceof Error ? error.message : 'An unexpected error occurred',
+        variant: 'destructive',
+      });
+    } finally {
+      setResendingId(null);
+    }
+  }, [toast, onRefresh]);
+
+  const handleCancelConfirm = useCallback(async () => {
     if (!invitationToCancel) return;
 
-    // Mock API call
-    setTimeout(() => {
-      onInvitationsChange(
-        invitations.filter(inv => inv.id !== invitationToCancel.id)
-      );
+    console.log('[Cancel Invitation] Starting cancel for:', invitationToCancel.email);
+
+    try {
+      // Call API to cancel invitation
+      const response = await fetch(`/api/settings/invitations/${invitationToCancel.id}`, {
+        method: 'DELETE',
+      });
+
+      console.log('[Cancel Invitation] API response status:', response.status);
+
+      const data = await response.json();
+      console.log('[Cancel Invitation] API response data:', data);
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to cancel invitation');
+      }
+
       toast({
         title: 'Invitation cancelled',
         description: `The invitation to ${invitationToCancel.email} has been cancelled.`,
       });
+
+      console.log('[Cancel Invitation] Success! Refreshing data...');
+
+      // Legacy local state update
+      onInvitationsChange(
+        invitations.filter(inv => inv.id !== invitationToCancel.id)
+      );
+
+      // Refresh parent data if callback provided
+      if (onRefresh) {
+        await onRefresh();
+        console.log('[Cancel Invitation] Parent data refreshed');
+      }
+
       setCancelDialogOpen(false);
       setInvitationToCancel(null);
-    }, 500);
-  }, [invitationToCancel, invitations, onInvitationsChange, toast]);
+    } catch (error) {
+      console.error('[Cancel Invitation] Error:', error);
+      toast({
+        title: 'Failed to cancel invitation',
+        description: error instanceof Error ? error.message : 'An unexpected error occurred',
+        variant: 'destructive',
+      });
+      setCancelDialogOpen(false);
+      setInvitationToCancel(null);
+    }
+  }, [invitationToCancel, invitations, onInvitationsChange, toast, onRefresh]);
 
   const handlePageChange = useCallback((page: number) => {
     setCurrentPage(page);
@@ -151,10 +220,10 @@ export default function PendingInvitations({
                   </Badge>
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
-                  {invitation.invited_by_name}
+                  {invitation.invitedBy || invitation.invited_by_name || 'Unknown'}
                 </TableCell>
                 <TableCell className="text-sm">
-                  {getExpiresIn(invitation.expires_at)}
+                  {getExpiresIn(invitation.expiresAt || invitation.expires_at)}
                 </TableCell>
                 <TableCell className="text-right space-x-2">
                   <Button

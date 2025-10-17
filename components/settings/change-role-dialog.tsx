@@ -21,7 +21,8 @@ interface ChangeRoleDialogProps {
   user: User;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (newRole: UserRole) => void;
+  onSave?: (newRole: UserRole) => void;
+  onSuccess?: () => void;
 }
 
 export default function ChangeRoleDialog({
@@ -29,12 +30,13 @@ export default function ChangeRoleDialog({
   open,
   onOpenChange,
   onSave,
+  onSuccess,
 }: ChangeRoleDialogProps) {
   const [selectedRole, setSelectedRole] = useState<UserRole>(user.role);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (selectedRole === user.role) {
       onOpenChange(false);
       return;
@@ -42,15 +44,59 @@ export default function ChangeRoleDialog({
 
     setIsLoading(true);
 
-    // Mock API call
-    setTimeout(() => {
-      setIsLoading(false);
-      onSave(selectedRole);
+    try {
+      // Get the role ID for the selected role
+      const rolesResponse = await fetch('/api/settings/roles');
+      if (!rolesResponse.ok) throw new Error('Failed to fetch roles');
+      
+      const rolesData = await rolesResponse.json();
+      const roleObj = rolesData.roles?.find((r: any) => r.name === selectedRole);
+      
+      if (!roleObj) throw new Error('Role not found');
+
+      // Call API to change role
+      const response = await fetch(`/api/settings/users/${user.id}/role`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          roleId: roleObj.id,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to change role');
+      }
+
       toast({
         title: 'Role changed',
-        description: `${user.full_name} is now ${selectedRole === 'admin' ? 'an Admin' : 'a User'}.`,
+        description: `${user.name || user.full_name} is now ${selectedRole === 'admin' ? 'an Admin' : 'a User'}.`,
       });
-    }, 500);
+
+      // Call legacy callback if provided
+      if (onSave) {
+        onSave(selectedRole);
+      }
+
+      // Refresh parent data
+      if (onSuccess) {
+        onSuccess();
+      }
+
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Error changing role:', error);
+      toast({
+        title: 'Failed to change role',
+        description: error instanceof Error ? error.message : 'An unexpected error occurred',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -59,7 +105,7 @@ export default function ChangeRoleDialog({
         <DialogHeader>
           <DialogTitle>Change User Role</DialogTitle>
           <DialogDescription>
-            Update the role for {user.full_name} ({user.email})
+            Update the role for {user.name || user.full_name} ({user.email})
           </DialogDescription>
         </DialogHeader>
 

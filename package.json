@@ -26,6 +26,7 @@
     "@radix-ui/react-tabs": "^1.0.4",
     "@radix-ui/react-toast": "latest",
     "@radix-ui/react-tooltip": "^1.0.7",
+    "@react-email/components": "^0.5.6",
     "@react-email/render": "latest",
     "@supabase/ssr": "latest",
     "@supabase/supabase-js": "latest",

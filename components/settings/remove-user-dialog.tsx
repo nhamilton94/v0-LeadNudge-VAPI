@@ -19,7 +19,8 @@ interface RemoveUserDialogProps {
   user: User;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onConfirm: () => void;
+  onConfirm?: () => void;
+  onSuccess?: () => void;
 }
 
 export default function RemoveUserDialog({
@@ -27,22 +28,52 @@ export default function RemoveUserDialog({
   open,
   onOpenChange,
   onConfirm,
+  onSuccess,
 }: RemoveUserDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     setIsLoading(true);
 
-    // Mock API call
-    setTimeout(() => {
-      setIsLoading(false);
-      onConfirm();
+    try {
+      // Call API to remove user
+      const response = await fetch(`/api/settings/users/${user.id}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to remove user');
+      }
+
       toast({
         title: 'User removed',
-        description: `${user.full_name} has been removed from the organization.`,
+        description: `${user.name || user.full_name} has been removed from the organization.`,
       });
-    }, 500);
+
+      // Call legacy callback if provided
+      if (onConfirm) {
+        onConfirm();
+      }
+
+      // Refresh parent data
+      if (onSuccess) {
+        onSuccess();
+      }
+
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Error removing user:', error);
+      toast({
+        title: 'Failed to remove user',
+        description: error instanceof Error ? error.message : 'An unexpected error occurred',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -57,7 +88,7 @@ export default function RemoveUserDialog({
 
         <div className="space-y-4 py-4">
           <div className="rounded-md bg-muted p-4">
-            <div className="font-medium">{user.full_name}</div>
+            <div className="font-medium">{user.name || user.full_name}</div>
             <div className="text-sm text-muted-foreground">{user.email}</div>
           </div>
 

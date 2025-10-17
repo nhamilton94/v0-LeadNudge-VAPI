@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -20,14 +20,48 @@ import { UserRole, Property } from '@/types/settings';
 interface InviteUsersDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void;
 }
 
-export default function InviteUsersDialog({ open, onOpenChange }: InviteUsersDialogProps) {
+interface Role {
+  id: string;
+  name: string;
+  description: string;
+}
+
+export default function InviteUsersDialog({ open, onOpenChange, onSuccess }: InviteUsersDialogProps) {
   const [emails, setEmails] = useState('');
   const [role, setRole] = useState<UserRole>('user');
+  const [roleId, setRoleId] = useState<string>('');
+  const [roles, setRoles] = useState<Role[]>([]);
   const [selectedProperties, setSelectedProperties] = useState<Property[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+
+  // Fetch available roles when dialog opens
+  useEffect(() => {
+    if (open) {
+      fetchRoles();
+    }
+  }, [open]);
+
+  const fetchRoles = async () => {
+    try {
+      const response = await fetch('/api/settings/roles');
+      if (!response.ok) throw new Error('Failed to fetch roles');
+      
+      const data = await response.json();
+      setRoles(data.roles || []);
+      
+      // Set default role ID
+      const userRole = data.roles?.find((r: Role) => r.name === 'user');
+      if (userRole) {
+        setRoleId(userRole.id);
+      }
+    } catch (error) {
+      console.error('Error fetching roles:', error);
+    }
+  };
 
   const handleSubmit = async () => {
     // Validate emails
@@ -56,22 +90,63 @@ export default function InviteUsersDialog({ open, onOpenChange }: InviteUsersDia
       return;
     }
 
+    if (!roleId) {
+      toast({
+        title: 'Role not selected',
+        description: 'Please select a role for the invited users.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsLoading(true);
 
-    // Mock API call
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      // Call real API
+      const response = await fetch('/api/settings/invitations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          emails: emailList,
+          roleId: roleId,
+          propertyIds: selectedProperties.map(p => p.id),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to send invitations');
+      }
+
       toast({
         title: 'Invitations sent!',
-        description: `Successfully sent ${emailList.length} invitation(s).`,
+        description: data.message || `Successfully sent ${emailList.length} invitation(s).`,
       });
       
       // Reset form
       setEmails('');
       setRole('user');
       setSelectedProperties([]);
+      
+      // Refresh parent data
+      if (onSuccess) {
+        onSuccess();
+      }
+      
       onOpenChange(false);
-    }, 1000);
+    } catch (error) {
+      console.error('Error sending invitations:', error);
+      toast({
+        title: 'Failed to send invitations',
+        description: error instanceof Error ? error.message : 'An unexpected error occurred',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -103,7 +178,16 @@ export default function InviteUsersDialog({ open, onOpenChange }: InviteUsersDia
           {/* Role Selection */}
           <div className="space-y-2">
             <Label>Assign Role *</Label>
-            <RadioGroup value={role} onValueChange={(value) => setRole(value as UserRole)}>
+            <RadioGroup 
+              value={role} 
+              onValueChange={(value) => {
+                const selectedRole = roles.find(r => r.name === value);
+                setRole(value as UserRole);
+                if (selectedRole) {
+                  setRoleId(selectedRole.id);
+                }
+              }}
+            >
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="user" id="role-user" />
                 <Label htmlFor="role-user" className="font-normal cursor-pointer">

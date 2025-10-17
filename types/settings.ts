@@ -5,13 +5,18 @@ export type InvitationStatus = 'pending' | 'accepted' | 'expired' | 'cancelled';
 export interface User {
   id: string;
   email: string;
-  full_name: string;
+  name?: string; // From API
+  full_name?: string; // Legacy field
   role: UserRole;
+  roleId?: string | null; // Role ID from database
+  organizationId?: string; // Organization ID
   avatar_url?: string | null;
   invited_by?: string;
   invited_at?: string;
   last_login_at?: string;
-  status: 'active' | 'suspended';
+  lastLoginAt?: string; // From API
+  createdAt?: string; // From API
+  status?: 'active' | 'inactive' | 'suspended';
   properties: Property[];
 }
 
@@ -26,12 +31,18 @@ export interface Invitation {
   id: string;
   email: string;
   role: UserRole;
-  invited_by: string;
-  invited_by_name: string;
+  roleId?: string | null; // Role ID from database
+  invitedBy?: string; // From API
+  invited_by?: string; // Legacy
+  invited_by_name?: string; // Legacy
   status: InvitationStatus;
-  expires_at: string;
-  created_at: string;
-  properties_to_assign?: Property[];
+  expiresAt?: string; // From API
+  expires_at?: string; // Legacy
+  createdAt?: string; // From API
+  created_at?: string; // Legacy
+  acceptedAt?: string | null; // From API
+  propertiesToAssign?: string[]; // From API (property IDs)
+  properties_to_assign?: Property[]; // Legacy
 }
 
 export interface OrganizationSettings {

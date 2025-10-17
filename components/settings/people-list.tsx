@@ -23,6 +23,11 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from '@/components/ui/hover-card';
 import InviteUsersDialog from './invite-users-dialog';
 import EditPropertiesDialog from './edit-properties-dialog';
 import ChangeRoleDialog from './change-role-dialog';
@@ -35,9 +40,10 @@ interface PeopleListProps {
   users: User[];
   currentUser: User;
   onUsersChange: (users: User[]) => void;
+  onRefresh?: () => void;
 }
 
-export default function PeopleList({ users, currentUser, onUsersChange }: PeopleListProps) {
+export default function PeopleList({ users, currentUser, onUsersChange, onRefresh }: PeopleListProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'user'>('all');
   const [currentPage, setCurrentPage] = useState(1);
@@ -52,8 +58,10 @@ export default function PeopleList({ users, currentUser, onUsersChange }: People
   // Memoize filtered users to avoid recalculation on every render
   const filteredUsers = useMemo(() => {
     return users.filter(user => {
-      const matchesSearch = user.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchQuery.toLowerCase());
+      const userName = user.name || user.full_name || '';
+      const userEmail = user.email || '';
+      const matchesSearch = userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        userEmail.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesRole = roleFilter === 'all' || user.role === roleFilter;
       return matchesSearch && matchesRole;
     });
@@ -99,60 +107,66 @@ export default function PeopleList({ users, currentUser, onUsersChange }: People
   }, []);
 
   const renderProperties = (user: User) => {
-    if (user.role === 'admin') {
-      return (
-        <Badge variant="secondary" className="font-normal">
-          All properties ({user.properties.length})
-        </Badge>
-      );
-    }
-
-    const properties = user.properties;
+    const properties = user.properties || [];
+    
     if (properties.length === 0) {
       return <span className="text-muted-foreground text-sm">No properties</span>;
     }
 
-    if (properties.length <= 3) {
+    // Single property - show with hover card for details
+    if (properties.length === 1) {
       return (
-        <div className="flex flex-wrap gap-1">
-          {properties.map(prop => (
-            <Badge key={prop.id} variant="outline" className="font-normal">
-              {prop.address}
+        <HoverCard>
+          <HoverCardTrigger asChild>
+            <Badge variant="outline" className="font-normal cursor-pointer">
+              {properties[0].address}
             </Badge>
-          ))}
-        </div>
+          </HoverCardTrigger>
+          <HoverCardContent className="w-80" align="start">
+            <div className="space-y-2">
+              <h4 className="font-semibold text-sm">Property Details</h4>
+              <div className="text-sm p-2 bg-muted rounded-md">
+                <div className="font-medium">{properties[0].address}</div>
+                <div className="text-muted-foreground text-xs mt-1">
+                  {properties[0].city}, {properties[0].state}
+                </div>
+              </div>
+            </div>
+          </HoverCardContent>
+        </HoverCard>
       );
     }
 
+    // Multiple properties - show count with hover card
     return (
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button variant="ghost" className="h-auto p-0 hover:bg-transparent">
-            <div className="flex flex-wrap gap-1">
-              {properties.slice(0, 2).map(prop => (
-                <Badge key={prop.id} variant="outline" className="font-normal">
-                  {prop.address}
-                </Badge>
-              ))}
-              <Badge variant="secondary" className="font-normal cursor-pointer">
-                +{properties.length - 2} more
-              </Badge>
-            </div>
+      <HoverCard>
+        <HoverCardTrigger asChild>
+          <Button 
+            variant="ghost" 
+            className="h-auto p-0 px-2 py-1 hover:bg-muted font-normal text-sm text-blue-600"
+          >
+            {properties.length} properties assigned
           </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-80">
+        </HoverCardTrigger>
+        <HoverCardContent className="w-80" align="start">
           <div className="space-y-2">
-            <h4 className="font-medium text-sm">All Assigned Properties</h4>
+            <h4 className="font-semibold text-sm">Assigned Properties ({properties.length})</h4>
             <div className="space-y-1 max-h-60 overflow-y-auto">
-              {properties.map(prop => (
-                <div key={prop.id} className="text-sm p-2 hover:bg-muted rounded-md">
-                  {prop.address}, {prop.city}, {prop.state}
+              {properties.map((prop) => (
+                <div 
+                  key={prop.id} 
+                  className="text-sm p-2 bg-muted hover:bg-muted/80 rounded-md"
+                >
+                  <div className="font-medium">{prop.address}</div>
+                  <div className="text-muted-foreground text-xs mt-1">
+                    {prop.city}, {prop.state}
+                  </div>
                 </div>
               ))}
             </div>
           </div>
-        </PopoverContent>
-      </Popover>
+        </HoverCardContent>
+      </HoverCard>
     );
   };
 
@@ -213,10 +227,10 @@ export default function PeopleList({ users, currentUser, onUsersChange }: People
                     <div className="flex items-center gap-3">
                       <Avatar>
                         <AvatarImage src={user.avatar_url || undefined} />
-                        <AvatarFallback>{getInitials(user.full_name)}</AvatarFallback>
+                        <AvatarFallback>{getInitials(user.name || user.full_name || user.email)}</AvatarFallback>
                       </Avatar>
                       <div>
-                        <div className="font-medium">{user.full_name}</div>
+                        <div className="font-medium">{user.name || user.full_name || user.email}</div>
                         <div className="text-sm text-muted-foreground">{user.email}</div>
                       </div>
                     </div>
@@ -279,13 +293,19 @@ export default function PeopleList({ users, currentUser, onUsersChange }: People
       />
 
       {/* Dialogs */}
-      <InviteUsersDialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen} />
+      <InviteUsersDialog 
+        open={inviteDialogOpen} 
+        onOpenChange={setInviteDialogOpen}
+        onSuccess={onRefresh}
+      />
       {editPropertiesUser && (
         <EditPropertiesDialog
           user={editPropertiesUser}
           open={!!editPropertiesUser}
           onOpenChange={(open) => !open && setEditPropertiesUser(null)}
+          onSuccess={onRefresh}
           onSave={(updatedProperties) => {
+            // Legacy local state update
             onUsersChange(
               users.map(u => u.id === editPropertiesUser.id ? { ...u, properties: updatedProperties } : u)
             );
@@ -298,7 +318,9 @@ export default function PeopleList({ users, currentUser, onUsersChange }: People
           user={changeRoleUser}
           open={!!changeRoleUser}
           onOpenChange={(open) => !open && setChangeRoleUser(null)}
+          onSuccess={onRefresh}
           onSave={(newRole) => {
+            // Legacy local state update
             onUsersChange(
               users.map(u => u.id === changeRoleUser.id ? { ...u, role: newRole } : u)
             );
@@ -311,7 +333,9 @@ export default function PeopleList({ users, currentUser, onUsersChange }: People
           user={removeUser}
           open={!!removeUser}
           onOpenChange={(open) => !open && setRemoveUser(null)}
+          onSuccess={onRefresh}
           onConfirm={() => {
+            // Legacy local state update
             onUsersChange(users.filter(u => u.id !== removeUser.id));
             setRemoveUser(null);
           }}

@@ -18,7 +18,8 @@ interface EditPropertiesDialogProps {
   user: User;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (properties: Property[]) => void;
+  onSave?: (properties: Property[]) => void;
+  onSuccess?: () => void;
 }
 
 export default function EditPropertiesDialog({
@@ -26,23 +27,59 @@ export default function EditPropertiesDialog({
   open,
   onOpenChange,
   onSave,
+  onSuccess,
 }: EditPropertiesDialogProps) {
   const [selectedProperties, setSelectedProperties] = useState<Property[]>(user.properties);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setIsLoading(true);
 
-    // Mock API call
-    setTimeout(() => {
-      setIsLoading(false);
-      onSave(selectedProperties);
+    try {
+      // Call API to update properties
+      const response = await fetch(`/api/settings/users/${user.id}/properties`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          propertyIds: selectedProperties.map(p => p.id),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update properties');
+      }
+
       toast({
         title: 'Properties updated',
-        description: `Successfully updated property assignments for ${user.full_name}.`,
+        description: `Successfully updated property assignments for ${user.name || user.full_name}.`,
       });
-    }, 500);
+
+      // Call legacy callback if provided
+      if (onSave) {
+        onSave(selectedProperties);
+      }
+
+      // Refresh parent data
+      if (onSuccess) {
+        onSuccess();
+      }
+
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Error updating properties:', error);
+      toast({
+        title: 'Failed to update properties',
+        description: error instanceof Error ? error.message : 'An unexpected error occurred',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -51,7 +88,7 @@ export default function EditPropertiesDialog({
         <DialogHeader>
           <DialogTitle>Edit Property Assignments</DialogTitle>
           <DialogDescription>
-            Manage property access for {user.full_name} ({user.email})
+            Manage property access for {user.name || user.full_name} ({user.email})
           </DialogDescription>
         </DialogHeader>
 

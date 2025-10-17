@@ -1,0 +1,133 @@
+{
+  "timestamp": "2025-10-16T09:23:25.857Z",
+  "database": "trsqtghplddeerdafxja",
+  "tables": {
+    "profiles": {
+      "count": 4,
+      "sample": {
+        "id": "7667f09d-13a7-47c8-b147-7049bbcdeb95",
+        "full_name": "Neha Agarwal",
+        "company": "Lead Nudge",
+        "role": "admin",
+        "phone_number": null,
+        "profile_picture_url": null,
+        "license_number": null,
+        "license_state": null,
+        "created_at": "2025-04-23T22:47:49.015687+00:00",
+        "updated_at": "2025-07-22T01:45:08.302222+00:00",
+        "onboarding_completed": true,
+        "email": null,
+        "zillow_premier_email": null,
+        "zillow_integration_status": "inactive",
+        "first_name": "Neha",
+        "last_name": "Agarwal"
+      }
+    },
+    "organizations": {
+      "count": 0,
+      "note": "Table does not exist yet"
+    },
+    "roles": {
+      "count": 0,
+      "note": "Table does not exist yet"
+    },
+    "user_roles": {
+      "count": 0,
+      "note": "Table does not exist yet"
+    },
+    "properties": {
+      "count": 2,
+      "sample": {
+        "id": "a0a8d3db-a49f-48db-bb64-af8c70580f06",
+        "address": "51 Rainey Street",
+        "city": "Austin",
+        "state": "TX",
+        "zip": "78701",
+        "property_type": "apartment",
+        "bedrooms": 3,
+        "bathrooms": 3,
+        "square_feet": 1800,
+        "price": 2100,
+        "status": "active",
+        "created_at": "2025-04-22T00:04:18.923869+00:00",
+        "updated_at": "2025-04-22T00:04:18.923869+00:00",
+        "created_by": "3bea5c74-8e27-4797-9d30-140cb9dc9cc2"
+      }
+    },
+    "contacts": {
+      "count": 267,
+      "sample": {
+        "id": "05d2331f-9b8a-4693-a348-7532547775ea",
+        "name": "Carlos Tate",
+        "title": "Regional Property Manager",
+        "email": "acastaneda@gmail.com.test",
+        "phone": "714844753",
+        "linkedin": null,
+        "industry": "Residential Real Estate",
+        "lead_source": null,
+        "lead_status": "new lead",
+        "image_url": null,
+        "created_by": "7667f09d-13a7-47c8-b147-7049bbcdeb95",
+        "assigned_to": "7667f09d-13a7-47c8-b147-7049bbcdeb95",
+        "created_at": "2025-04-24T22:02:22.710249+00:00",
+        "updated_at": "2025-04-24T22:02:22.710249+00:00",
+        "first_name": "Carlos",
+        "last_name": "Tate",
+        "interested_property": "065262db-2b0e-405b-8f43-15975c1bb9ad"
+      }
+    },
+    "teams": {
+      "count": 0,
+      "sample": null
+    },
+    "team_members": {
+      "count": 0,
+      "sample": null
+    },
+    "events": {
+      "count": 0,
+      "sample": null
+    },
+    "conversations": {
+      "count": 27,
+      "sample": {
+        "id": "95774921-ecf3-4989-bd43-8a7d273b5776",
+        "created_at": "2025-09-16T00:34:44.969437+00:00",
+        "updated_at": "2025-09-16T02:35:05.58506+00:00",
+        "contact_id": "748b4f41-5f7f-48f7-9022-df24de972c59",
+        "user_id": "f02a6f8e-65f0-4fee-85f1-e8b7237ecf0b",
+        "botpress_conversation_id": "conv_01K5860A0W1BA6AGT1SXWNN5N8",
+        "twilio_conversation_sid": null,
+        "phone_number": "6099635631",
+        "status": "active",
+        "metadata": {},
+        "botpress_user_id": "user_01K4P3NV3TYY1MGXWJXD3D9F6T"
+      }
+    },
+    "messages": {
+      "count": 1100,
+      "sample": {
+        "id": "d33bc852-836e-451f-8700-33425fef5f18",
+        "created_at": "2025-09-23T00:11:27.75+00:00",
+        "conversation_id": "63044901-7bad-4894-a296-19cb492bac37",
+        "direction": "inbound",
+        "source": "botpress",
+        "message_type": "text",
+        "content": "Hi, I'm interested in the 2-bedroom apartment at 123 Main Street. Is it still available?",
+        "twilio_message_sid": null,
+        "botpress_message_id": "bp_msg_1758701487750_0_0",
+        "delivery_status": "delivered",
+        "metadata": {
+          "contact_name": "John Smith",
+          "message_index": 0,
+          "conversation_topic": "apartment_inquiry"
+        },
+        "is_read": true
+      }
+    },
+    "invitations": {
+      "count": 0,
+      "note": "Table does not exist yet"
+    }
+  }
+}

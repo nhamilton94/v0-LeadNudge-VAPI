@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { Check, ChevronsUpDown, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Check, ChevronsUpDown, X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Command,
@@ -18,7 +18,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Property } from '@/types/settings';
-import { mockProperties } from '@/lib/mock-data/settings-data';
+import { useToast } from '@/components/ui/use-toast';
 
 interface PropertyMultiSelectProps {
   selectedProperties: Property[];
@@ -30,8 +30,38 @@ export default function PropertyMultiSelect({
   onSelectionChange,
 }: PropertyMultiSelectProps) {
   const [open, setOpen] = useState(false);
+  const [availableProperties, setAvailableProperties] = useState<Property[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
-  const availableProperties = mockProperties;
+  // Fetch properties from API
+  useEffect(() => {
+    fetchProperties();
+  }, []);
+
+  const fetchProperties = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/settings/properties');
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch properties');
+      }
+
+      const data = await response.json();
+      setAvailableProperties(data.properties || []);
+    } catch (error) {
+      console.error('Error fetching properties:', error);
+      toast({
+        title: 'Error loading properties',
+        description: 'Failed to load available properties. Please try again.',
+        variant: 'destructive',
+      });
+      setAvailableProperties([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSelect = (property: Property) => {
     const isSelected = selectedProperties.some(p => p.id === property.id);
@@ -56,17 +86,29 @@ export default function PropertyMultiSelect({
             role="combobox"
             aria-expanded={open}
             className="w-full justify-between"
+            disabled={loading}
           >
-            {selectedProperties.length === 0
-              ? 'Select properties...'
-              : `${selectedProperties.length} selected`}
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Loading properties...
+              </>
+            ) : selectedProperties.length === 0 ? (
+              'Select properties...'
+            ) : (
+              `${selectedProperties.length} selected`
+            )}
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-full p-0" align="start">
           <Command>
             <CommandInput placeholder="Search properties..." />
-            <CommandEmpty>No properties found.</CommandEmpty>
+            <CommandEmpty>
+              {availableProperties.length === 0 
+                ? 'No properties available. Add properties first.'
+                : 'No properties found.'}
+            </CommandEmpty>
             <CommandGroup className="max-h-64 overflow-auto">
               {availableProperties.map((property) => {
                 const isSelected = selectedProperties.some(p => p.id === property.id);
