@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     const { data: conversation, error: conversationError } = await supabase
       .from("conversations")
       .select("*")
-      .eq("id", conversationId)
+      .eq("botpress_conversation_id", conversationId)
       .single()
 
     console.log("Conversation query result:", { conversation, conversationError })
