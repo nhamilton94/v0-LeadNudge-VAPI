@@ -65,6 +65,33 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(redirectUrl)
     }
 
+    // Check if authenticated user is deactivated
+    if (session && !isPublicRoute && !isSigningOut) {
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('status')
+          .eq('id', session.user.id)
+          .single();
+
+        if (profile && profile.status === 'inactive') {
+          console.log("User is deactivated, logging out:", session.user.email);
+          
+          // Sign out the user
+          await supabase.auth.signOut();
+          
+          // Redirect to login with error message
+          const redirectUrl = new URL("/auth", request.url);
+          redirectUrl.searchParams.set("error", "account_deactivated");
+          redirectUrl.searchParams.set("message", "Your account has been deactivated. Please contact your administrator.");
+          return NextResponse.redirect(redirectUrl);
+        }
+      } catch (error) {
+        console.error("Error checking user status:", error);
+        // Continue on error to not block access
+      }
+    }
+
     // Handle authenticated users on auth pages
     if (session && isPublicRoute) {
       // Skip the dashboard redirect if we're signing out

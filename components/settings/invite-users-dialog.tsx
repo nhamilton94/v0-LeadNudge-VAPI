@@ -99,7 +99,16 @@ export default function InviteUsersDialog({ open, onOpenChange, onSuccess }: Inv
       return;
     }
 
+    await sendInvitations(false); // Initial attempt without reactivation
+  };
+
+  const sendInvitations = async (reactivateDeactivated: boolean, skipConfirmation: boolean = false) => {
     setIsLoading(true);
+
+    const emailList = emails
+      .split(/[\n,]+/)
+      .map((e) => e.trim())
+      .filter((e) => e.length > 0);
 
     try {
       // Call real API
@@ -112,10 +121,46 @@ export default function InviteUsersDialog({ open, onOpenChange, onSuccess }: Inv
           emails: emailList,
           roleId: roleId,
           propertyIds: selectedProperties.map(p => p.id),
+          reactivateDeactivated,
         }),
       });
 
       const data = await response.json();
+
+      // Check if confirmation is required for deactivated users (only on first attempt)
+      if (!skipConfirmation && data.requiresConfirmation && data.deactivatedUsers) {
+        setIsLoading(false);
+        
+        const userNames = data.deactivatedUsers.map((u: any) => u.name).join(', ');
+        const userCount = data.deactivatedUsers.length;
+        const message = userCount === 1
+          ? `The user "${userNames}" was previously removed. Do you want to reactivate them and send the invitation?`
+          : `${userCount} users (${userNames}) were previously removed. Do you want to reactivate them and send invitations?`;
+
+        if (confirm(message)) {
+          // User confirmed - reactivate and send invitations to all
+          await sendInvitations(true, true);
+        } else {
+          // User cancelled - send invitations only to non-deactivated users
+          // The backend will filter out deactivated users when reactivateDeactivated=false
+          const remainingCount = emailList.length - userCount;
+          if (remainingCount > 0) {
+            toast({
+              title: 'Proceeding with other users',
+              description: `Skipping ${userCount} deactivated user(s), sending to ${remainingCount} other user(s).`,
+            });
+            // Send again but backend will skip deactivated users
+            await sendInvitations(false, true);
+          } else {
+            toast({
+              title: 'No invitations sent',
+              description: 'All users were deactivated and no reactivation was requested.',
+            });
+            setIsLoading(false);
+          }
+        }
+        return;
+      }
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to send invitations');

@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
 
     // Get all invitations for the organization
     // Fetch invitations (only pending ones for the "Pending Invitations" tab)
-    const { data: invitations, error: invitationsError } = await supabase
+    let { data: invitations, error: invitationsError } = await supabase
       .from('invitations')
       .select(`
         id,
@@ -72,6 +72,45 @@ export async function GET(request: NextRequest) {
     }
 
     console.log(`[GET Invitations] Found ${invitations?.length || 0} pending invitations for organization ${profile.organization_id}`);
+
+    // Check for expired invitations and update them (as per PRD audit requirements)
+    const now = new Date();
+    const expiredInvitations = invitations?.filter(inv => {
+      const expiresAt = new Date(inv.expires_at);
+      return inv.status === 'pending' && expiresAt < now;
+    }) || [];
+
+    // Update expired invitations and create audit logs
+    if (expiredInvitations.length > 0) {
+      const expiredIds = expiredInvitations.map(inv => inv.id);
+      
+      // Update status to expired
+      await supabase
+        .from('invitations')
+        .update({ status: 'expired' })
+        .in('id', expiredIds);
+
+      // Create audit logs for each expired invitation (PRD requirement)
+      await supabase.from('audit_logs').insert(
+        expiredInvitations.map(inv => ({
+          organization_id: profile.organization_id,
+          user_id: inv.invited_by,
+          action: 'invitation_expired',
+          entity_type: 'invitation',
+          entity_id: inv.id,
+          details: {
+            email: inv.email,
+            expires_at: inv.expires_at,
+            expired_at: now.toISOString(),
+          },
+        }))
+      );
+
+      console.log(`[GET Invitations] Marked ${expiredInvitations.length} invitations as expired`);
+      
+      // Remove expired invitations from the list (they're no longer pending)
+      invitations = invitations?.filter(inv => !expiredIds.includes(inv.id)) || [];
+    }
 
     // Get unique inviter IDs
     const inviterIds = [...new Set(invitations?.map(inv => inv.invited_by).filter(Boolean))];
@@ -100,6 +139,20 @@ export async function GET(request: NextRequest) {
                           inviter?.email || 
                           'Admin';
       
+      // Parse properties_to_assign (stored as JSON string)
+      let propertiesToAssign: string[] = [];
+      if (inv.properties_to_assign) {
+        try {
+          const parsed = typeof inv.properties_to_assign === 'string'
+            ? JSON.parse(inv.properties_to_assign)
+            : inv.properties_to_assign;
+          propertiesToAssign = Array.isArray(parsed) ? parsed : [];
+        } catch (error) {
+          console.error('Error parsing properties_to_assign:', error);
+          propertiesToAssign = [];
+        }
+      }
+      
       return {
         id: inv.id,
         email: inv.email,
@@ -110,7 +163,7 @@ export async function GET(request: NextRequest) {
         expiresAt: inv.expires_at,
         acceptedAt: inv.accepted_at,
         invitedBy: inviterName,
-        propertiesToAssign: inv.properties_to_assign || [],
+        propertiesToAssign,
       };
     });
 
@@ -174,7 +227,7 @@ export async function POST(request: NextRequest) {
 
     // Get request body
     const body = await request.json();
-    const { emails, roleId, propertyIds = [] } = body;
+    const { emails, roleId, propertyIds = [], reactivateDeactivated = false } = body;
 
     // Validate input
     if (!Array.isArray(emails) || emails.length === 0) {
@@ -196,20 +249,90 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if any emails already have active accounts
+    // Check if any emails already have accounts (active or inactive)
     const { data: existingProfiles } = await supabase
       .from('profiles')
-      .select('email')
+      .select('email, status, full_name, first_name, last_name')
       .eq('organization_id', profile.organization_id)
       .in('email', emails);
 
-    const existingEmails = existingProfiles?.map((p) => p.email) || [];
+    // Separate active and inactive users
+    const activeUsers = existingProfiles?.filter(p => p.status === 'active') || [];
+    const deactivatedUsers = existingProfiles?.filter(p => p.status === 'inactive') || [];
     
-    if (existingEmails.length > 0) {
+    const activeEmails = activeUsers.map(p => p.email);
+    
+    // Block invitations to active users
+    if (activeEmails.length > 0) {
       return NextResponse.json(
-        { error: `Users already exist: ${existingEmails.join(', ')}` },
+        { error: `Users already exist: ${activeEmails.join(', ')}` },
         { status: 400 }
       );
+    }
+
+    // If deactivated users found and not confirmed for reactivation, prompt user
+    if (deactivatedUsers.length > 0 && !reactivateDeactivated) {
+      return NextResponse.json(
+        { 
+          requiresConfirmation: true,
+          deactivatedUsers: deactivatedUsers.map(u => ({
+            email: u.email,
+            name: u.full_name || `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email,
+          })),
+          message: 'Some users were previously removed. Do you want to reactivate them?'
+        },
+        { status: 200 }
+      );
+    }
+
+    // Reactivate deactivated users if confirmed
+    const deactivatedEmails = deactivatedUsers.map(u => u.email);
+    if (reactivateDeactivated && deactivatedEmails.length > 0) {
+      console.log(`[Invite Users] Reactivating ${deactivatedEmails.length} deactivated users`);
+      
+      // Reactivate users by setting status to 'active'
+      const { error: reactivateError } = await supabase
+        .from('profiles')
+        .update({ status: 'active', updated_at: new Date().toISOString() })
+        .eq('organization_id', profile.organization_id)
+        .in('email', deactivatedEmails);
+
+      if (reactivateError) {
+        console.error('Error reactivating users:', reactivateError);
+        return NextResponse.json({ error: 'Failed to reactivate users' }, { status: 500 });
+      }
+
+      // Log reactivation for each user
+      await supabase.from('audit_logs').insert(
+        deactivatedUsers.map(u => ({
+          organization_id: profile.organization_id,
+          user_id: user.id,
+          action: 'user_reactivated',
+          entity_type: 'profile',
+          entity_id: null,
+          details: {
+            email: u.email,
+            name: u.full_name || `${u.first_name || ''} ${u.last_name || ''}`.trim(),
+            reactivated_via: 'invitation',
+          },
+        }))
+      );
+
+      console.log(`[Invite Users] Successfully reactivated users: ${deactivatedEmails.join(', ')}`);
+    }
+
+    // Filter emails: exclude deactivated users if not reactivating
+    const emailsToInvite = reactivateDeactivated 
+      ? emails 
+      : emails.filter(email => !deactivatedEmails.includes(email));
+
+    // If all emails were deactivated and user chose not to reactivate, return success with message
+    if (emailsToInvite.length === 0) {
+      return NextResponse.json({
+        success: true,
+        message: 'No invitations sent. All users were deactivated.',
+        skipped: deactivatedEmails,
+      });
     }
 
     // Check if any emails have pending invitations
@@ -218,7 +341,7 @@ export async function POST(request: NextRequest) {
       .select('email')
       .eq('organization_id', profile.organization_id)
       .eq('status', 'pending')
-      .in('email', emails);
+      .in('email', emailsToInvite);
 
     const pendingEmails = pendingInvitations?.map((i) => i.email) || [];
     
@@ -229,11 +352,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create invitations
+    // Create invitations (for non-deactivated or reactivated users)
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7); // 7 days from now
 
-    const invitationsToCreate = emails.map((email) => ({
+    const invitationsToCreate = emailsToInvite.map((email) => ({
       organization_id: profile.organization_id,
       email: email.toLowerCase(),
       role_id: roleId,
@@ -256,7 +379,7 @@ export async function POST(request: NextRequest) {
 
     // Log the action
     await supabase.from('audit_logs').insert(
-      emails.map((email) => ({
+      emailsToInvite.map((email) => ({
         organization_id: profile.organization_id,
         user_id: user.id,
         action: 'invitation_sent',
@@ -266,6 +389,7 @@ export async function POST(request: NextRequest) {
           email,
           role_id: roleId,
           properties_count: propertyIds.length,
+          reactivated: deactivatedEmails.includes(email),
         },
       }))
     );
@@ -308,13 +432,14 @@ export async function POST(request: NextRequest) {
     // Log failed email details
     emailResults.forEach((result, index) => {
       if (result.status === 'rejected') {
-        console.error(`[Invitation API] Email failed for ${emails[index]}:`, result.reason);
+        console.error(`[Invitation API] Email failed for ${emailsToInvite[index]}:`, result.reason);
       }
     });
 
     console.log(`[Invitation API] Emails sent: ${successCount} succeeded, ${failedCount} failed`);
 
-    let message = `${emails.length} invitation(s) created.`;
+    // Build success message
+    let message = `${emailsToInvite.length} invitation(s) created.`;
     if (successCount > 0) {
       message += ` ${successCount} email(s) sent.`;
     }
@@ -322,10 +447,21 @@ export async function POST(request: NextRequest) {
       message += ` ${failedCount} email(s) failed to send. Check server logs for details.`;
     }
 
+    // Add info about reactivated/skipped users
+    const skippedCount = emails.length - emailsToInvite.length;
+    if (reactivateDeactivated && deactivatedEmails.length > 0) {
+      message += ` ${deactivatedEmails.length} user(s) reactivated.`;
+    }
+    if (skippedCount > 0 && !reactivateDeactivated) {
+      message += ` ${skippedCount} deactivated user(s) skipped.`;
+    }
+
     return NextResponse.json({
       success: true,
       message,
       invitations: createdInvitations,
+      reactivated: reactivateDeactivated ? deactivatedEmails : [],
+      skipped: !reactivateDeactivated ? deactivatedEmails : [],
       emailStats: {
         sent: successCount,
         failed: failedCount,

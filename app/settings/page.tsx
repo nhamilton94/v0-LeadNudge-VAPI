@@ -14,13 +14,40 @@ export default function SettingsPage() {
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [initialFetchDone, setInitialFetchDone] = useState(false);
   const { toast } = useToast();
 
-  // Fetch users and current user info
+  // Fetch current user first to check if admin
   useEffect(() => {
-    fetchUsers();
-    fetchInvitations();
+    fetchCurrentUser();
   }, []);
+
+  // Fetch users for all, invitations only for admin (only once on mount)
+  useEffect(() => {
+    if (currentUser && !initialFetchDone) {
+      setInitialFetchDone(true);
+      loadInitialData();
+    }
+  }, [currentUser, isAdmin, initialFetchDone]);
+
+  const loadInitialData = async () => {
+    setDataLoading(true);
+    
+    try {
+      // All users can see the people list
+      await fetchUsers();
+      
+      // Only admins can see invitations
+      if (isAdmin) {
+        await fetchInvitations();
+      }
+    } finally {
+      setDataLoading(false);
+      setLoading(false);
+    }
+  };
 
   const fetchUsers = async () => {
     try {
@@ -29,10 +56,6 @@ export default function SettingsPage() {
       
       const data = await response.json();
       setUsers(data.users || []);
-      
-      // Determine current user from the list (you can also fetch this from a separate endpoint)
-      // For now, we'll get it from the auth context or a separate call
-      fetchCurrentUser();
     } catch (error) {
       console.error('Error fetching users:', error);
       toast({
@@ -40,8 +63,6 @@ export default function SettingsPage() {
         description: 'Failed to load users',
         variant: 'destructive',
       });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -51,9 +72,16 @@ export default function SettingsPage() {
       if (response.ok) {
         const data = await response.json();
         setCurrentUser(data.user);
+        setIsAdmin(data.user?.role === 'admin');
+      } else {
+        // User not authenticated or profile not found
+        setInitialFetchDone(true);
+        setLoading(false);
       }
     } catch (error) {
       console.error('Error fetching current user:', error);
+      setInitialFetchDone(true);
+      setLoading(false);
     }
   };
 
@@ -71,14 +99,17 @@ export default function SettingsPage() {
     }
   };
 
-  // Refresh both users and invitations (called after invite, role change, etc.)
+  // Refresh users and invitations (called after invite, role change, etc.)
   const handleRefresh = async () => {
-    await Promise.all([fetchUsers(), fetchInvitations()]);
+    if (isAdmin) {
+      await Promise.all([fetchUsers(), fetchInvitations()]);
+    } else {
+      await fetchUsers();
+    }
   };
 
-  const isAdmin = currentUser?.role === 'admin';
-
-  if (loading || !currentUser) {
+  // Loading state - show skeleton until both user and data are loaded
+  if (loading || !currentUser || dataLoading) {
     return (
       <div className="container mx-auto py-6 space-y-6">
         <Skeleton className="h-10 w-48" />
@@ -94,36 +125,34 @@ export default function SettingsPage() {
         <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
       </div>
 
-      {/* Tabs */}
-      <Tabs defaultValue="people" className="w-full">
-        <TabsList>
-          <TabsTrigger value="people">People</TabsTrigger>
-          {isAdmin && (
+      {/* Admin View: Show tabs with People and Pending Invitations */}
+      {isAdmin ? (
+        <Tabs defaultValue="people" className="w-full">
+          <TabsList>
+            <TabsTrigger value="people">People</TabsTrigger>
             <TabsTrigger value="invitations">
               Pending Invitations ({invitations.length})
             </TabsTrigger>
-          )}
-        </TabsList>
+          </TabsList>
 
-        {/* People Tab */}
-        <TabsContent value="people" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>People</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <PeopleList 
-                users={users} 
-                currentUser={currentUser}
-                onUsersChange={setUsers}
-                onRefresh={handleRefresh}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
+          {/* People Tab */}
+          <TabsContent value="people" className="mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>People</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <PeopleList 
+                  users={users} 
+                  currentUser={currentUser}
+                  onUsersChange={setUsers}
+                  onRefresh={handleRefresh}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-        {/* Pending Invitations Tab */}
-        {isAdmin && (
+          {/* Pending Invitations Tab */}
           <TabsContent value="invitations" className="mt-6">
             <Card>
               <CardHeader>
@@ -138,8 +167,23 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
           </TabsContent>
-        )}
-      </Tabs>
+        </Tabs>
+      ) : (
+        /* User View: Show only People list without tabs */
+        <Card>
+          <CardHeader>
+            <CardTitle>People in your Organization</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <PeopleList 
+              users={users} 
+              currentUser={currentUser}
+              onUsersChange={setUsers}
+              onRefresh={handleRefresh}
+            />
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

@@ -32,8 +32,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
     }
 
-    // Get all users in the organization
-    // Note: Only selecting columns that exist in current schema
+    // Get all active users in the organization (exclude deactivated users)
     const { data: users, error: usersError } = await supabase
       .from('profiles')
       .select(`
@@ -42,9 +41,11 @@ export async function GET(request: NextRequest) {
         full_name,
         first_name,
         last_name,
+        status,
         created_at
       `)
       .eq('organization_id', profile.organization_id)
+      .eq('status', 'active')
       .order('created_at', { ascending: false });
 
     if (usersError) {
@@ -114,7 +115,7 @@ export async function GET(request: NextRequest) {
         name: user.full_name || `${user.first_name || ''} ${user.last_name || ''}`.trim(),
         role: role?.name || 'user',
         roleId: role?.id || null,
-        status: 'active', // Default to active (column doesn't exist yet)
+        status: user.status || 'active',
         properties,
         createdAt: user.created_at,
         // Optional fields that may be added later:

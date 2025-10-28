@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { randomBytes } from 'crypto';
+import { sendInvitationEmail } from '@/lib/services/email-service';
 
 /**
  * POST /api/settings/invitations/[invitationId]/resend
@@ -46,10 +47,10 @@ export async function POST(
       return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
     }
 
-    // Get the invitation
+    // Get the invitation with all needed details
     const { data: invitation, error: invitationError } = await supabase
       .from('invitations')
-      .select('id, email, organization_id, status')
+      .select('id, email, organization_id, status, role_id, properties_to_assign, invited_by')
       .eq('id', invitationId)
       .single();
 
@@ -103,8 +104,63 @@ export async function POST(
       },
     });
 
-    // TODO: Send the new invitation email here
-    // This will be implemented separately per user's request
+    // Get organization name
+    const { data: organization } = await supabase
+      .from('organizations')
+      .select('name')
+      .eq('id', invitation.organization_id)
+      .single();
+
+    // Get role name
+    const { data: role } = await supabase
+      .from('roles')
+      .select('name')
+      .eq('id', invitation.role_id)
+      .single();
+
+    // Get inviter profile
+    const { data: inviterProfile } = await supabase
+      .from('profiles')
+      .select('email, first_name, last_name, full_name')
+      .eq('id', invitation.invited_by)
+      .single();
+
+    // Parse properties count (stored as JSON string)
+    let propertiesCount = 0;
+    if (invitation.properties_to_assign) {
+      try {
+        const parsed = typeof invitation.properties_to_assign === 'string'
+          ? JSON.parse(invitation.properties_to_assign)
+          : invitation.properties_to_assign;
+        propertiesCount = Array.isArray(parsed) ? parsed.length : 0;
+      } catch (error) {
+        console.error('[Resend Invitation] Error parsing properties_to_assign:', error);
+        propertiesCount = 0;
+      }
+    }
+
+    // Send the invitation email with new token
+    console.log('[Resend Invitation] Sending email to:', invitation.email);
+    console.log('[Resend Invitation] New token:', newToken);
+    console.log('[Resend Invitation] Properties count:', propertiesCount);
+
+    try {
+      await sendInvitationEmail({
+        to: invitation.email,
+        invitationToken: newToken,
+        organizationName: organization?.name || 'Your Organization',
+        role: role?.name || 'User',
+        invitedByName: inviterProfile?.full_name || inviterProfile?.first_name || 'Admin',
+        invitedByEmail: inviterProfile?.email || '',
+        expiresAt: newExpiresAt,
+        propertiesCount,
+      });
+      
+      console.log('[Resend Invitation] Email sent successfully to:', invitation.email);
+    } catch (emailError) {
+      console.error('[Resend Invitation] Failed to send email:', emailError);
+      // Don't fail the request if email fails, but log it
+    }
 
     return NextResponse.json({
       success: true,
