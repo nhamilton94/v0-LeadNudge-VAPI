@@ -3,9 +3,10 @@ import { createServerSupabaseClient } from '@/lib/supabase/server';
 
 /**
  * DELETE /api/settings/users/[userId]
- * Remove user from organization
+ * Deactivate user from organization
  * Requires: Admin role
- * Note: This deletes the user's profile (cascade deletes will handle related records)
+ * Note: This deactivates the user (sets status to 'inactive') to preserve historical data
+ *       as per PRD requirements. The user cannot login but all historical data is preserved.
  */
 export async function DELETE(
   request: NextRequest,
@@ -25,9 +26,9 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Prevent users from deleting themselves
+    // Prevent users from removing themselves
     if (userId === user.id) {
-      return NextResponse.json({ error: 'Cannot delete your own account' }, { status: 400 });
+      return NextResponse.json({ error: 'Cannot remove your own account' }, { status: 400 });
     }
 
     // Get user's profile and organization
@@ -51,15 +52,23 @@ export async function DELETE(
       return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
     }
 
-    // Check if target user is in same organization
+    // Check if target user is in same organization and get their current status
     const { data: targetProfile, error: targetError } = await supabase
       .from('profiles')
-      .select('organization_id, email, full_name')
+      .select('organization_id, email, full_name, first_name, last_name, status')
       .eq('id', userId)
       .single();
 
     if (targetError || targetProfile?.organization_id !== profile.organization_id) {
       return NextResponse.json({ error: 'User not found in your organization' }, { status: 404 });
+    }
+
+    // Check if user is already inactive
+    if (targetProfile.status === 'inactive') {
+      return NextResponse.json(
+        { error: 'User is already deactivated' },
+        { status: 400 }
+      );
     }
 
     // Check if target user is the last admin
@@ -69,7 +78,7 @@ export async function DELETE(
       .eq('organization_id', profile.organization_id)
       .eq('roles.name', 'admin');
 
-    // If target user is admin and is the last one, prevent deletion
+    // If target user is admin and is the last one, prevent removal
     const { data: targetUserRoles } = await supabase
       .from('user_roles')
       .select('roles!inner(name)')
@@ -85,34 +94,39 @@ export async function DELETE(
       );
     }
 
-    // Delete the user profile (cascade will handle user_roles, property_assignments, etc.)
-    const { error: deleteError } = await supabase
+    // Deactivate the user (preserves historical data as per PRD)
+    const { error: updateError } = await supabase
       .from('profiles')
-      .delete()
+      .update({ 
+        status: 'inactive',
+        updated_at: new Date().toISOString()
+      })
       .eq('id', userId);
 
-    if (deleteError) {
-      console.error('Error deleting user:', deleteError);
-      return NextResponse.json({ error: 'Failed to delete user' }, { status: 500 });
+    if (updateError) {
+      console.error('Error deactivating user:', updateError);
+      return NextResponse.json({ error: 'Failed to deactivate user' }, { status: 500 });
     }
 
-    // Log the action
+    // Log the action (as per PRD audit requirements)
     await supabase.from('audit_logs').insert({
       organization_id: profile.organization_id,
       user_id: user.id,
-      action: 'user_removed',
+      action: 'user_deactivated',
       entity_type: 'profile',
       entity_id: userId,
       details: {
         target_user_id: userId,
         target_user_email: targetProfile.email,
-        target_user_name: targetProfile.full_name,
+        target_user_name: targetProfile.full_name || `${targetProfile.first_name} ${targetProfile.last_name}`.trim(),
+        previous_status: targetProfile.status,
+        new_status: 'inactive',
       },
     });
 
     return NextResponse.json({
       success: true,
-      message: 'User removed from organization',
+      message: 'User deactivated successfully. Historical data has been preserved.',
     });
   } catch (error) {
     console.error('Unexpected error in DELETE /api/settings/users/[userId]:', error);
