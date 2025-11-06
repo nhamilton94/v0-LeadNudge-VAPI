@@ -181,18 +181,16 @@ export default function PeopleList({ users, currentUser, onUsersChange, onRefres
             onChange={(e) => setSearchQuery(e.target.value)}
             className="max-w-xs"
           />
-          {isAdmin && (
-            <Select value={roleFilter} onValueChange={handleRoleFilterChange}>
-              <SelectTrigger className="w-[140px]">
-                <SelectValue placeholder="Filter by role" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Roles</SelectItem>
-                <SelectItem value="admin">Admin</SelectItem>
-                <SelectItem value="user">User</SelectItem>
-              </SelectContent>
-            </Select>
-          )}
+          <Select value={roleFilter} onValueChange={handleRoleFilterChange}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="Filter by role" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Roles</SelectItem>
+              <SelectItem value="admin">Admin</SelectItem>
+              <SelectItem value="user">User</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         {isAdmin && (
           <Button onClick={() => setInviteDialogOpen(true)}>
@@ -203,20 +201,20 @@ export default function PeopleList({ users, currentUser, onUsersChange, onRefres
       </div>
 
       {/* People Table */}
-      <div className="rounded-md border">
+      <div className="rounded-md border max-h-[600px] overflow-auto">
         <Table>
-          <TableHeader>
+          <TableHeader className="sticky top-0 bg-background z-10">
             <TableRow>
               <TableHead>User</TableHead>
               <TableHead>Role</TableHead>
               <TableHead>Properties</TableHead>
-              <TableHead className="w-[50px]"></TableHead>
+              {isAdmin && <TableHead className="w-[50px]"></TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {paginatedUsers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="text-center text-muted-foreground">
+                <TableCell colSpan={isAdmin ? 4 : 3} className="text-center text-muted-foreground">
                   No users found
                 </TableCell>
               </TableRow>
@@ -241,8 +239,8 @@ export default function PeopleList({ users, currentUser, onUsersChange, onRefres
                     </Badge>
                   </TableCell>
                   <TableCell>{renderProperties(user)}</TableCell>
-                  <TableCell>
-                    {isAdmin && (
+                  {isAdmin && (
+                    <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" className="h-8 w-8 p-0">
@@ -253,7 +251,10 @@ export default function PeopleList({ users, currentUser, onUsersChange, onRefres
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => setChangeRoleUser(user)}>
+                          <DropdownMenuItem 
+                            onClick={() => setChangeRoleUser(user)}
+                            disabled={user.id === currentUser.id}
+                          >
                             Change Role
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => setEditPropertiesUser(user)}>
@@ -269,11 +270,8 @@ export default function PeopleList({ users, currentUser, onUsersChange, onRefres
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
-                    )}
-                    {!isAdmin && (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    )}
-                  </TableCell>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))
             )}

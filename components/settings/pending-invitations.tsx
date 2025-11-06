@@ -192,9 +192,9 @@ export default function PendingInvitations({
         />
       </div>
 
-      <div className="rounded-md border">
+      <div className="rounded-md border max-h-[600px] overflow-auto">
         <Table>
-          <TableHeader>
+          <TableHeader className="sticky top-0 bg-background z-10">
             <TableRow>
               <TableHead>Email</TableHead>
               <TableHead>Role</TableHead>

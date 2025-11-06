@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, CheckCircle2, XCircle, Mail, UserCircle, Shield } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { useAuth } from '@/components/auth/supabase-auth-provider';
 
 interface InvitationDetails {
   email: string;
@@ -24,6 +25,7 @@ export default function AcceptInvitationPage() {
   const params = useParams();
   const router = useRouter();
   const { toast } = useToast();
+  const { refreshSession } = useAuth();
   const token = params.token as string;
 
   const [loading, setLoading] = useState(true);
@@ -111,6 +113,21 @@ export default function AcceptInvitationPage() {
       const data = await response.json();
 
       if (!response.ok) {
+        // Handle email already exists error specially
+        if (data.code === 'email_exists' || response.status === 409) {
+          toast({
+            title: 'Account Already Exists',
+            description: data.error || 'An account with this email already exists.',
+            variant: 'destructive',
+          });
+          
+          // Redirect to login after 2 seconds
+          setTimeout(() => {
+            router.push('/login');
+          }, 2000);
+          return;
+        }
+        
         throw new Error(data.error || 'Failed to accept invitation');
       }
 
@@ -119,10 +136,18 @@ export default function AcceptInvitationPage() {
         description: data.message || 'Your account has been created.',
       });
 
+      // Refresh the session to ensure the client picks up the new auth state
+      console.log('Refreshing session after invitation acceptance...');
+      await refreshSession();
+      
+      // Also refresh the Next.js router to update middleware/cache
+      router.refresh();
+      
+      // Small delay to ensure session is properly set
+      await new Promise(resolve => setTimeout(resolve, 500));
+
       // Redirect after successful acceptance
-      setTimeout(() => {
-        router.push(data.redirectTo || '/dashboard');
-      }, 1500);
+      router.push(data.redirectTo || '/dashboard');
     } catch (err: any) {
       console.error('Accept error:', err);
       toast({
