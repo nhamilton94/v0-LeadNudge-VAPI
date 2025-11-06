@@ -29,14 +29,26 @@ export async function POST(request: Request) {
     // Create Supabase client with service role for bypassing RLS
     const supabase = createServiceClient()
 
-    // Find the conversation by database ID (conversationId is our database conversation.id)
+    // Find the conversation by botpress_conversation_id or database ID
     console.log(`Looking for conversation with ID: ${conversationId}`)
     
-    const { data: conversation, error: conversationError } = await supabase
+    let { data: conversation, error: conversationError } = await supabase
       .from("conversations")
       .select("*")
-      .eq("id", conversationId)
+      .eq("botpress_conversation_id", conversationId)
       .single()
+    
+    // If not found by botpress_conversation_id, try by database ID (fallback)
+    if (conversationError && !conversationId.startsWith("bp_conv_")) {
+      const { data: fallbackConversation, error: fallbackError } = await supabase
+        .from("conversations")
+        .select("*")
+        .eq("id", conversationId)
+        .single()
+      
+      conversation = fallbackConversation
+      conversationError = fallbackError
+    }
 
     console.log("Conversation query result:", { conversation, conversationError })
 
@@ -71,7 +83,7 @@ export async function POST(request: Request) {
         message_type: "text",
         content: text,
         botpress_message_id: metadata?.messageId || null,
-        delivery_status: "pending",
+        delivery_status: "sent",
         metadata: metadata || {}
       })
       .select()
