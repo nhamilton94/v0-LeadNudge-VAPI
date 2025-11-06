@@ -17,6 +17,13 @@ interface TwilioWebhookPayload {
 
 export async function POST(request: Request) {
   try {
+    // Log all request headers
+    console.log("=== Twilio Webhook Headers ===")
+    request.headers.forEach((value, key) => {
+      console.log(`${key}: ${value}`)
+    })
+    console.log("===============================")
+    
     // Parse form data (Twilio sends form-encoded data)
     const formData = await request.formData()
     const payload: Partial<TwilioWebhookPayload> = {}
@@ -28,8 +35,21 @@ export async function POST(request: Request) {
     // Validate Twilio webhook signature
     const twilioSignature = request.headers.get('x-twilio-signature')
     if (twilioSignature) {
-      const url = request.url
-      const isValid = validateTwilioWebhook(twilioSignature, url, payload as Record<string, string>)
+      // Construct the correct URL using the host header (important for ngrok)
+      const host = request.headers.get('host') || request.headers.get('x-forwarded-host')
+      const protocol = request.headers.get('x-forwarded-proto') || 'https'
+      const correctUrl = `${protocol}://${host}/api/twilio/webhook`
+      
+      console.log("=== Twilio Signature Validation ===")
+      console.log("Signature:", twilioSignature)
+      console.log("Original URL:", request.url)
+      console.log("Correct URL:", correctUrl)
+      console.log("Payload:", payload)
+      console.log("================================")
+      
+      const isValid = validateTwilioWebhook(twilioSignature, correctUrl, payload as Record<string, string>)
+      
+      console.log("Validation result:", isValid)
       
       if (!isValid) {
         console.log ("Invalid Twilio signature");
