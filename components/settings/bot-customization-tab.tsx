@@ -43,12 +43,43 @@ export default function BotCustomizationTab({ isAdmin }: BotCustomizationTabProp
   const [showPublishDialog, setShowPublishDialog] = useState(false);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
 
-  // Get organization_id from user metadata
+  // Load existing bot customization on mount
   useEffect(() => {
     if (user?.user_metadata?.organization_id) {
       setOrganizationId(user.user_metadata.organization_id);
+      loadBotCustomization();
     }
   }, [user]);
+
+  const loadBotCustomization = async () => {
+    try {
+      const response = await fetch('/api/bot-customization');
+      if (!response.ok) {
+        throw new Error('Failed to fetch bot customization');
+      }
+
+      const result = await response.json();
+      
+      if (result.exists && result.data) {
+        setFormData({
+          property_scope: result.data.property_scope || 'all',
+          selected_property_id: result.data.selected_property_id,
+          greeting_message: result.data.greeting_message,
+          qualification_questions: result.data.qualification_questions,
+          faqs: result.data.faqs,
+          tour_confirmation_message: result.data.tour_confirmation_message,
+          not_qualified_message: result.data.not_qualified_message,
+        });
+      }
+    } catch (error) {
+      console.error('Error loading bot customization:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load bot customization settings.',
+        variant: 'destructive',
+      });
+    }
+  };
 
   const [formData, setFormData] = useState<BotCustomizationFormData>({
     property_scope: 'all',
@@ -68,32 +99,35 @@ export default function BotCustomizationTab({ isAdmin }: BotCustomizationTabProp
   const handleSaveDraft = async () => {
     setSaving(true);
     try {
-      // TODO: Implement API call when backend is ready
-      // API call should include:
-      // - organizationId (from user context)
-      // - formData (current bot customization settings)
-      // - Backend must verify user has 'admin' role
-      // Example:
-      // const response = await fetch('/api/bot-customization', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ organizationId, ...formData }),
-      // });
+      const response = await fetch('/api/bot-customization', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to save draft');
+      }
+
+      const result = await response.json();
       
-      setTimeout(() => {
-        toast({
-          title: 'Draft saved',
-          description: 'Your bot customization changes have been saved as a draft.',
-        });
-        setSaving(false);
-      }, 1000);
+      toast({
+        title: 'Draft saved',
+        description: 'Your bot customization changes have been saved as a draft.',
+      });
+      
+      // Reload to get the latest data
+      await loadBotCustomization();
+      
     } catch (error) {
       console.error('Error saving draft:', error);
       toast({
         title: 'Error',
-        description: 'Failed to save draft. Please try again.',
+        description: error instanceof Error ? error.message : 'Failed to save draft. Please try again.',
         variant: 'destructive',
       });
+    } finally {
       setSaving(false);
     }
   };
@@ -101,43 +135,57 @@ export default function BotCustomizationTab({ isAdmin }: BotCustomizationTabProp
   const handlePublish = async () => {
     setPublishing(true);
     try {
-      // TODO: Implement API call when backend is ready
-      // API call should include:
-      // - organizationId (from user context)
-      // - formData (current bot customization settings)
-      // - Backend must verify user has 'admin' role
-      // - Update last_published_at timestamp
-      // Example:
-      // const response = await fetch('/api/bot-customization/publish', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({
-      //     organizationId,
-      //     property_scope: formData.property_scope,
-      //     property_id: formData.selected_property_id,
-      //     ...formData
-      //   }),
-      // });
+      // First save as draft
+      const saveResponse = await fetch('/api/bot-customization', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      if (!saveResponse.ok) {
+        const error = await saveResponse.json();
+        throw new Error(error.error || 'Failed to save before publishing');
+      }
+
+      // Then publish
+      const publishResponse = await fetch('/api/bot-customization/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          property_scope: formData.property_scope,
+          selected_property_id: formData.selected_property_id,
+        }),
+      });
+
+      if (!publishResponse.ok) {
+        const error = await publishResponse.json();
+        throw new Error(error.error || 'Failed to publish changes');
+      }
+
+      const result = await publishResponse.json();
       
-      setTimeout(() => {
-        toast({
-          title: 'Changes published',
-          description: `Bot customization has been published ${
-            formData.property_scope === 'all'
-              ? 'globally to all properties'
-              : 'for the selected property'
-          }.`,
-        });
-        setPublishing(false);
-        setShowPublishDialog(false);
-      }, 1000);
+      toast({
+        title: 'Changes published',
+        description: `Bot customization has been published ${
+          formData.property_scope === 'all'
+            ? 'globally to all properties'
+            : 'for the selected property'
+        }.`,
+      });
+      
+      // Reload to get the latest data
+      await loadBotCustomization();
+      
+      setShowPublishDialog(false);
+      
     } catch (error) {
       console.error('Error publishing changes:', error);
       toast({
         title: 'Error',
-        description: 'Failed to publish changes. Please try again.',
+        description: error instanceof Error ? error.message : 'Failed to publish changes. Please try again.',
         variant: 'destructive',
       });
+    } finally {
       setPublishing(false);
     }
   };
