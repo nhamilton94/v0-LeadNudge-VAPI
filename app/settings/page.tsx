@@ -195,7 +195,7 @@ export default function SettingsPage() {
             {/* Bot Customization Tab */}
             <TabsContent value="bot-customization" className="m-0 h-full">
               <div className="container mx-auto px-6 py-6">
-                <BotCustomizationTab isAdmin={isAdmin} />
+                <BotCustomizationTab isAdmin={isAdmin} user={currentUser} />
               </div>
             </TabsContent>
           </div>

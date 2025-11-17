@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +18,12 @@ const CHARACTER_LIMIT = 300;
 
 export function GreetingEditor({ message, onChange, disabled = false }: GreetingEditorProps) {
   const [charCount, setCharCount] = useState(message.length);
+
+  // Sync charCount with message prop changes (when loaded from API)
+  useEffect(() => {
+    console.log('[GreetingEditor] Message prop changed:', message.substring(0, 50), 'Length:', message.length);
+    setCharCount(message.length);
+  }, [message]);
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newMessage = e.target.value;

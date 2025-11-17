@@ -26,60 +26,21 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/components/ui/use-toast';
-import { useAuth } from '@/components/auth/supabase-auth-provider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MessageSquare, HelpCircle, BookOpen, CalendarCheck } from 'lucide-react';
 
 interface BotCustomizationTabProps {
   isAdmin: boolean;
+  user: any; // User from settings page with organization_id
 }
 
-export default function BotCustomizationTab({ isAdmin }: BotCustomizationTabProps) {
+export default function BotCustomizationTab({ isAdmin, user }: BotCustomizationTabProps) {
   const { toast } = useToast();
-  const { user } = useAuth();
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [showResetDialog, setShowResetDialog] = useState(false);
   const [showPublishDialog, setShowPublishDialog] = useState(false);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
-
-  // Load existing bot customization on mount
-  useEffect(() => {
-    if (user?.user_metadata?.organization_id) {
-      setOrganizationId(user.user_metadata.organization_id);
-      loadBotCustomization();
-    }
-  }, [user]);
-
-  const loadBotCustomization = async () => {
-    try {
-      const response = await fetch('/api/bot-customization');
-      if (!response.ok) {
-        throw new Error('Failed to fetch bot customization');
-      }
-
-      const result = await response.json();
-      
-      if (result.exists && result.data) {
-        setFormData({
-          property_scope: result.data.property_scope || 'all',
-          selected_property_id: result.data.selected_property_id,
-          greeting_message: result.data.greeting_message,
-          qualification_questions: result.data.qualification_questions,
-          faqs: result.data.faqs,
-          tour_confirmation_message: result.data.tour_confirmation_message,
-          not_qualified_message: result.data.not_qualified_message,
-        });
-      }
-    } catch (error) {
-      console.error('Error loading bot customization:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load bot customization settings.',
-        variant: 'destructive',
-      });
-    }
-  };
 
   const [formData, setFormData] = useState<BotCustomizationFormData>({
     property_scope: 'all',
@@ -96,9 +57,88 @@ export default function BotCustomizationTab({ isAdmin }: BotCustomizationTabProp
     not_qualified_message: DEFAULT_NOT_QUALIFIED,
   });
 
+  const [isLoading, setIsLoading] = useState(true);
+
+  const loadBotCustomization = async () => {
+    try {
+      console.log('[Frontend] Loading bot customization...');
+      setIsLoading(true);
+      
+      const response = await fetch('/api/bot-customization');
+      
+      if (!response.ok) {
+        console.error('[Frontend] Failed to fetch:', response.status);
+        const errorData = await response.json();
+        console.error('[Frontend] Error details:', errorData);
+        throw new Error('Failed to fetch bot customization');
+      }
+
+      const result = await response.json();
+      console.log('[Frontend] Received data:', result);
+      console.log('[Frontend] Greeting from API:', result.data?.greeting_message);
+      
+      if (result.exists && result.data) {
+        console.log('[Frontend] Setting form data with:', {
+          greeting_length: result.data.greeting_message?.length,
+          greeting_preview: result.data.greeting_message?.substring(0, 50),
+          questions_count: result.data.qualification_questions?.length,
+          faqs_count: result.data.faqs?.length,
+        });
+        
+        const newFormData = {
+          property_scope: result.data.property_scope || 'all',
+          selected_property_id: result.data.selected_property_id,
+          greeting_message: result.data.greeting_message,
+          qualification_questions: result.data.qualification_questions || [],
+          faqs: result.data.faqs || [],
+          tour_confirmation_message: result.data.tour_confirmation_message,
+          not_qualified_message: result.data.not_qualified_message,
+        };
+        
+        console.log('[Frontend] About to setFormData with greeting:', newFormData.greeting_message?.substring(0, 50));
+        setFormData(newFormData);
+        console.log('[Frontend] Form data updated successfully');
+      } else {
+        console.log('[Frontend] No existing customization found, using defaults');
+      }
+    } catch (error) {
+      console.error('[Frontend] Error loading bot customization:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load bot customization settings.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Load existing bot customization on mount
+  useEffect(() => {
+    console.log('[Frontend] useEffect triggered');
+    console.log('[Frontend] User object:', user);
+    console.log('[Frontend] Has user:', !!user);
+    console.log('[Frontend] Organization ID:', user?.organization_id);
+    
+    if (user?.organization_id) {
+      setOrganizationId(user.organization_id);
+      loadBotCustomization();
+    } else {
+      console.log('[Frontend] User or organization_id not available yet');
+      setIsLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.organization_id]); // Only reload when org ID changes
+
   const handleSaveDraft = async () => {
     setSaving(true);
     try {
+      console.log('[Frontend] Saving draft with data:', {
+        greeting_length: formData.greeting_message.length,
+        questions_count: formData.qualification_questions.length,
+        faqs_count: formData.faqs.length,
+      });
+
       const response = await fetch('/api/bot-customization', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -107,21 +147,24 @@ export default function BotCustomizationTab({ isAdmin }: BotCustomizationTabProp
 
       if (!response.ok) {
         const error = await response.json();
+        console.error('[Frontend] Save failed:', error);
         throw new Error(error.error || 'Failed to save draft');
       }
 
       const result = await response.json();
+      console.log('[Frontend] Save successful:', result);
       
       toast({
         title: 'Draft saved',
         description: 'Your bot customization changes have been saved as a draft.',
       });
       
-      // Reload to get the latest data
+      // Reload to get the latest data from database
+      console.log('[Frontend] Reloading saved data...');
       await loadBotCustomization();
       
     } catch (error) {
-      console.error('Error saving draft:', error);
+      console.error('[Frontend] Error saving draft:', error);
       toast({
         title: 'Error',
         description: error instanceof Error ? error.message : 'Failed to save draft. Please try again.',
@@ -211,6 +254,18 @@ export default function BotCustomizationTab({ isAdmin }: BotCustomizationTabProp
       description: 'All customizations have been reset to default values.',
     });
   };
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" />
+          <p className="mt-2 text-sm text-muted-foreground">Loading bot customization...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
