@@ -73,15 +73,20 @@ export async function POST(request: Request) {
     const cleanFrom = From.replace(/^\+?1?/, '').replace(/\D/g, '')
 
     const supabase = createServiceClient()
+    console.log("cleanFrom", cleanFrom);
+    console.log("From", From);
+    console.log("OR query string:", `phone.eq.${cleanFrom},phone.eq.${From}`);
 
     // Try to find existing contact by phone number
-    let { data: contact } = await supabase
+    let { data: contact, error: contactError } = await supabase
       .from("contacts")
       .select("*")
       .or(`phone.eq.${cleanFrom},phone.eq.${From}`)
+      .limit(1)
       .single()
 
-    console.log("contact", contact);
+    console.log("contact query error:", contactError);
+    console.log("contact found:", contact);
 
     // If no contact found, create one
     if (!contact) {

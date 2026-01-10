@@ -139,7 +139,22 @@ export async function POST(request: NextRequest) {
         userId: user.id 
       })
 
-      // 4. Send the first message as the bot
+      // 4. Set conversation state with contact context
+      await client.setState({
+        type: "conversation",
+        id: botpressConversation.id,
+        name: "contactContext",
+        payload: {
+          firstName: contact.first_name,
+          lastName: contact.last_name,
+          fullName: contact.name,
+          phone: contact.phone,
+          email: contact.email,
+          contactId: contact.id
+        }
+      })
+
+      // 5. Send the first message as the bot
       const initialMessage = `Hi, is this ${contact.first_name || contact.name}? I'm Alex, a virtual assistant for 149 Pennsylvania Avenue. I saw you were interested in the property. Would you like to schedule a tour?`
       
       await client.createMessage({ 
@@ -150,7 +165,7 @@ export async function POST(request: NextRequest) {
         tags: {}
       })
 
-      // 5. Update conversation with actual Botpress IDs
+      // 6. Update conversation with actual Botpress IDs
       const { error: updateError } = await supabase
         .from("conversations")
         .update({
