@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import PeopleList from '@/components/settings/people-list';
 import PendingInvitations from '@/components/settings/pending-invitations';
+import BotCustomizationTab from '@/components/settings/bot-customization-tab';
 import { User, Invitation } from '@/types/settings';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -119,70 +120,115 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-      </div>
-
-      {/* Admin View: Show tabs with People and Pending Invitations */}
+    <div className="h-screen flex flex-col">
+      {/* Admin View: Show tabs with People, Pending Invitations, and Bot Customization */}
       {isAdmin ? (
-        <Tabs defaultValue="people" className="w-full">
-          <TabsList>
-            <TabsTrigger value="people">People</TabsTrigger>
-            <TabsTrigger value="invitations">
-              Pending Invitations ({invitations.length})
-            </TabsTrigger>
-          </TabsList>
+        <Tabs defaultValue="people" className="flex flex-col h-full">
+          {/* Fixed Header with Tabs */}
+          <div className="flex-shrink-0 border-b bg-background sticky top-0 z-10">
+            <div className="container mx-auto px-6 py-6">
+              <div className="flex items-center justify-between">
+                <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
+                <TabsList className="h-auto bg-transparent">
+                  <TabsTrigger 
+                    value="people"
+                    className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 py-2"
+                  >
+                    People
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="invitations"
+                    className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 py-2"
+                  >
+                    Pending Invitations ({invitations.length})
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="bot-customization"
+                    className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 py-2"
+                  >
+                    Bot Customization
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+            </div>
+          </div>
 
-          {/* People Tab */}
-          <TabsContent value="people" className="mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>People</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <PeopleList 
-                  users={users} 
-                  currentUser={currentUser}
-                  onUsersChange={setUsers}
-                  onRefresh={handleRefresh}
-                />
-              </CardContent>
-            </Card>
-          </TabsContent>
+          {/* Scrollable Tab Content */}
+          <div className="flex-1 overflow-y-auto">
+            {/* People Tab */}
+            <TabsContent value="people" className="m-0 h-full">
+              <div className="container mx-auto px-6 py-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>People</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <PeopleList 
+                      users={users} 
+                      currentUser={currentUser}
+                      onUsersChange={setUsers}
+                      onRefresh={handleRefresh}
+                    />
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
 
-          {/* Pending Invitations Tab */}
-          <TabsContent value="invitations" className="mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Pending Invitations</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <PendingInvitations 
-                  invitations={invitations}
-                  onInvitationsChange={setInvitations}
-                  onRefresh={fetchInvitations}
-                />
-              </CardContent>
-            </Card>
-          </TabsContent>
+            {/* Pending Invitations Tab */}
+            <TabsContent value="invitations" className="m-0 h-full">
+              <div className="container mx-auto px-6 py-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Pending Invitations</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <PendingInvitations 
+                      invitations={invitations}
+                      onInvitationsChange={setInvitations}
+                      onRefresh={fetchInvitations}
+                    />
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+
+            {/* Bot Customization Tab */}
+            <TabsContent value="bot-customization" className="m-0 h-full">
+              <div className="container mx-auto px-6 py-6">
+                <BotCustomizationTab isAdmin={isAdmin} user={currentUser} />
+              </div>
+            </TabsContent>
+          </div>
         </Tabs>
       ) : (
         /* User View: Show only People list without tabs */
-        <Card>
-          <CardHeader>
-            <CardTitle>People in your Organization</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <PeopleList 
-              users={users} 
-              currentUser={currentUser}
-              onUsersChange={setUsers}
-              onRefresh={handleRefresh}
-            />
-          </CardContent>
-        </Card>
+        <>
+          {/* Fixed Header */}
+          <div className="flex-shrink-0 border-b bg-background sticky top-0 z-10">
+            <div className="container mx-auto px-6 py-6">
+              <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
+            </div>
+          </div>
+          
+          {/* Scrollable Content */}
+          <div className="flex-1 overflow-y-auto">
+            <div className="container mx-auto px-6 py-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>People in your Organization</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <PeopleList 
+                    users={users} 
+                    currentUser={currentUser}
+                    onUsersChange={setUsers}
+                    onRefresh={handleRefresh}
+                  />
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

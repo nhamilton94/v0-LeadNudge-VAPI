@@ -201,7 +201,7 @@ export default function PeopleList({ users, currentUser, onUsersChange, onRefres
       </div>
 
       {/* People Table */}
-      <div className="rounded-md border max-h-[600px] overflow-auto">
+      <div className="rounded-md border">
         <Table>
           <TableHeader className="sticky top-0 bg-background z-10">
             <TableRow>
