@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic"
 import { NextResponse } from "next/server"
-import { createClient } from "@/utils/supabase/server"
+import { createServiceClient } from "@/utils/supabase/service"
 import { validateTwilioWebhook } from "@/lib/twilio-validation"
 import axios from "axios"
 
@@ -17,6 +17,13 @@ interface TwilioWebhookPayload {
 
 export async function POST(request: Request) {
   try {
+    // Log all request headers
+    console.log("=== Twilio Webhook Headers ===")
+    request.headers.forEach((value, key) => {
+      console.log(`${key}: ${value}`)
+    })
+    console.log("===============================")
+    
     // Parse form data (Twilio sends form-encoded data)
     const formData = await request.formData()
     const payload: Partial<TwilioWebhookPayload> = {}
@@ -28,10 +35,24 @@ export async function POST(request: Request) {
     // Validate Twilio webhook signature
     const twilioSignature = request.headers.get('x-twilio-signature')
     if (twilioSignature) {
-      const url = request.url
-      const isValid = validateTwilioWebhook(twilioSignature, url, payload as Record<string, string>)
+      // Construct the correct URL using the host header (important for ngrok)
+      const host = request.headers.get('host') || request.headers.get('x-forwarded-host')
+      const protocol = request.headers.get('x-forwarded-proto') || 'https'
+      const correctUrl = `${protocol}://${host}/api/twilio/webhook`
+      
+      console.log("=== Twilio Signature Validation ===")
+      console.log("Signature:", twilioSignature)
+      console.log("Original URL:", request.url)
+      console.log("Correct URL:", correctUrl)
+      console.log("Payload:", payload)
+      console.log("================================")
+      
+      const isValid = validateTwilioWebhook(twilioSignature, correctUrl, payload as Record<string, string>)
+      
+      console.log("Validation result:", isValid)
       
       if (!isValid) {
+        console.log ("Invalid Twilio signature");
         return NextResponse.json(
           { error: "Invalid Twilio signature" },
           { status: 401 }
@@ -51,7 +72,7 @@ export async function POST(request: Request) {
     // Clean phone numbers (remove +1, spaces, etc.)
     const cleanFrom = From.replace(/^\+?1?/, '').replace(/\D/g, '')
 
-    const supabase = createClient()
+    const supabase = createServiceClient()
 
     // Try to find existing contact by phone number
     let { data: contact } = await supabase
@@ -60,8 +81,11 @@ export async function POST(request: Request) {
       .or(`phone.eq.${cleanFrom},phone.eq.${From}`)
       .single()
 
+    console.log("contact", contact);
+
     // If no contact found, create one
     if (!contact) {
+      console.log("No contact found, creating one");
       const { data: newContact, error: contactError } = await supabase
         .from("contacts")
         .insert({
@@ -163,6 +187,7 @@ export async function POST(request: Request) {
     } else {
       // If no Botpress conversation exists, create one by calling your integration
       try {
+        console.log("Creating Botpress conversation");
         const botpressIntegrationUrl = process.env.BOTPRESS_INTEGRATION_URL
         if (botpressIntegrationUrl) {
           const response = await axios.post(botpressIntegrationUrl, {
@@ -175,7 +200,9 @@ export async function POST(request: Request) {
           if (response.status === 200) {
             // Update the conversation with Botpress conversation ID
             // Note: You'd need to extract the actual Botpress conversation ID from the response
+            console.log("Botpress conversation created");
             const botpressResponse = response.data
+            console.log("Botpress conversation response", botpressResponse);
             await supabase
               .from("conversations")
               .update({
