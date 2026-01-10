@@ -14,6 +14,113 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_logs: {
+        Row: {
+          action: string
+          created_at: string | null
+          details: Json | null
+          entity_id: string | null
+          entity_type: string
+          id: string
+          ip_address: unknown
+          organization_id: string
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          details?: Json | null
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          ip_address?: unknown
+          organization_id: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          details?: Json | null
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          ip_address?: unknown
+          organization_id?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bot_customizations: {
+        Row: {
+          created_at: string
+          created_by: string
+          greeting_message: string
+          id: string
+          not_qualified_message: string
+          organization_id: string
+          property_id: string | null
+          published_at: string | null
+          status: string
+          tour_confirmation_message: string
+          updated_at: string
+          updated_by: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          greeting_message: string
+          id?: string
+          not_qualified_message: string
+          organization_id: string
+          property_id?: string | null
+          published_at?: string | null
+          status?: string
+          tour_confirmation_message: string
+          updated_at?: string
+          updated_by: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          greeting_message?: string
+          id?: string
+          not_qualified_message?: string
+          organization_id?: string
+          property_id?: string | null
+          published_at?: string | null
+          status?: string
+          tour_confirmation_message?: string
+          updated_at?: string
+          updated_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bot_customizations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bot_customizations_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_activities: {
         Row: {
           activity_type: Database["public"]["Enums"]["activity_type"]
@@ -140,6 +247,7 @@ export type Database = {
           lead_status: Database["public"]["Enums"]["lead_status"]
           linkedin: string | null
           name: string
+          organization_id: string | null
           phone: string | null
           title: string | null
           updated_at: string
@@ -159,6 +267,7 @@ export type Database = {
           lead_status?: Database["public"]["Enums"]["lead_status"]
           linkedin?: string | null
           name: string
+          organization_id?: string | null
           phone?: string | null
           title?: string | null
           updated_at?: string
@@ -178,6 +287,7 @@ export type Database = {
           lead_status?: Database["public"]["Enums"]["lead_status"]
           linkedin?: string | null
           name?: string
+          organization_id?: string | null
           phone?: string | null
           title?: string | null
           updated_at?: string
@@ -204,6 +314,13 @@ export type Database = {
             referencedRelation: "properties"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "contacts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
         ]
       }
       conversations: {
@@ -214,6 +331,7 @@ export type Database = {
           created_at: string
           id: string
           metadata: Json | null
+          organization_id: string | null
           phone_number: string
           status: string
           twilio_conversation_sid: string | null
@@ -227,6 +345,7 @@ export type Database = {
           created_at?: string
           id?: string
           metadata?: Json | null
+          organization_id?: string | null
           phone_number: string
           status?: string
           twilio_conversation_sid?: string | null
@@ -240,6 +359,7 @@ export type Database = {
           created_at?: string
           id?: string
           metadata?: Json | null
+          organization_id?: string | null
           phone_number?: string
           status?: string
           twilio_conversation_sid?: string | null
@@ -252,6 +372,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
           {
@@ -423,6 +550,7 @@ export type Database = {
           id: string
           location: string | null
           location_type: Database["public"]["Enums"]["location_type"] | null
+          organization_id: string | null
           start_date: string
           status: Database["public"]["Enums"]["event_status"]
           title: string
@@ -439,6 +567,7 @@ export type Database = {
           id?: string
           location?: string | null
           location_type?: Database["public"]["Enums"]["location_type"] | null
+          organization_id?: string | null
           start_date: string
           status?: Database["public"]["Enums"]["event_status"]
           title: string
@@ -455,6 +584,7 @@ export type Database = {
           id?: string
           location?: string | null
           location_type?: Database["public"]["Enums"]["location_type"] | null
+          organization_id?: string | null
           start_date?: string
           status?: Database["public"]["Enums"]["event_status"]
           title?: string
@@ -466,6 +596,118 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "events_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      faq_library: {
+        Row: {
+          answer: string
+          created_at: string
+          id: string
+          last_updated: string
+          organization_id: string
+          property_id: string | null
+          question: string
+          updated_at: string
+        }
+        Insert: {
+          answer: string
+          created_at?: string
+          id?: string
+          last_updated?: string
+          organization_id: string
+          property_id?: string | null
+          question: string
+          updated_at?: string
+        }
+        Update: {
+          answer?: string
+          created_at?: string
+          id?: string
+          last_updated?: string
+          organization_id?: string
+          property_id?: string | null
+          question?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "faq_library_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "faq_library_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invitations: {
+        Row: {
+          accepted_at: string | null
+          created_at: string | null
+          email: string
+          expires_at: string
+          id: string
+          invited_by: string
+          organization_id: string
+          properties_to_assign: Json | null
+          role_id: string
+          status: string | null
+          token: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string | null
+          email: string
+          expires_at: string
+          id?: string
+          invited_by: string
+          organization_id: string
+          properties_to_assign?: Json | null
+          role_id: string
+          status?: string | null
+          token: string
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string | null
+          email?: string
+          expires_at?: string
+          id?: string
+          invited_by?: string
+          organization_id?: string
+          properties_to_assign?: Json | null
+          role_id?: string
+          status?: string | null
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invitations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invitations_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
             referencedColumns: ["id"]
           },
         ]
@@ -530,6 +772,39 @@ export type Database = {
           },
         ]
       }
+      organizations: {
+        Row: {
+          created_at: string | null
+          domain: string | null
+          id: string
+          max_properties: number | null
+          max_users: number | null
+          name: string
+          settings: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          domain?: string | null
+          id?: string
+          max_properties?: number | null
+          max_users?: number | null
+          name: string
+          settings?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          domain?: string | null
+          id?: string
+          max_properties?: number | null
+          max_users?: number | null
+          name?: string
+          settings?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           company: string | null
@@ -538,13 +813,18 @@ export type Database = {
           first_name: string | null
           full_name: string
           id: string
+          invited_at: string | null
+          invited_by: string | null
+          last_login_at: string | null
           last_name: string | null
           license_number: string | null
           license_state: string | null
           onboarding_completed: boolean
+          organization_id: string | null
           phone_number: string | null
           profile_picture_url: string | null
           role: Database["public"]["Enums"]["user_role"]
+          status: string | null
           updated_at: string
           zillow_integration_status: Database["public"]["Enums"]["zillow_integration_status"]
           zillow_premier_email: string | null
@@ -556,13 +836,18 @@ export type Database = {
           first_name?: string | null
           full_name: string
           id: string
+          invited_at?: string | null
+          invited_by?: string | null
+          last_login_at?: string | null
           last_name?: string | null
           license_number?: string | null
           license_state?: string | null
           onboarding_completed?: boolean
+          organization_id?: string | null
           phone_number?: string | null
           profile_picture_url?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          status?: string | null
           updated_at?: string
           zillow_integration_status?: Database["public"]["Enums"]["zillow_integration_status"]
           zillow_premier_email?: string | null
@@ -574,18 +859,31 @@ export type Database = {
           first_name?: string | null
           full_name?: string
           id?: string
+          invited_at?: string | null
+          invited_by?: string | null
+          last_login_at?: string | null
           last_name?: string | null
           license_number?: string | null
           license_state?: string | null
           onboarding_completed?: boolean
+          organization_id?: string | null
           phone_number?: string | null
           profile_picture_url?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          status?: string | null
           updated_at?: string
           zillow_integration_status?: Database["public"]["Enums"]["zillow_integration_status"]
           zillow_premier_email?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       properties: {
         Row: {
@@ -596,6 +894,7 @@ export type Database = {
           created_at: string
           created_by: string
           id: string
+          organization_id: string | null
           price: number | null
           property_type: Database["public"]["Enums"]["property_type"]
           square_feet: number | null
@@ -612,6 +911,7 @@ export type Database = {
           created_at?: string
           created_by: string
           id?: string
+          organization_id?: string | null
           price?: number | null
           property_type: Database["public"]["Enums"]["property_type"]
           square_feet?: number | null
@@ -628,6 +928,7 @@ export type Database = {
           created_at?: string
           created_by?: string
           id?: string
+          organization_id?: string | null
           price?: number | null
           property_type?: Database["public"]["Enums"]["property_type"]
           square_feet?: number | null
@@ -642,6 +943,55 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "properties_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      property_assignments: {
+        Row: {
+          assigned_at: string | null
+          assigned_by: string | null
+          id: string
+          organization_id: string
+          property_id: string
+          user_id: string
+        }
+        Insert: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          id?: string
+          organization_id: string
+          property_id: string
+          user_id: string
+        }
+        Update: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          id?: string
+          organization_id?: string
+          property_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_assignments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_assignments_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
             referencedColumns: ["id"]
           },
         ]
@@ -694,6 +1044,53 @@ export type Database = {
           },
         ]
       }
+      qualification_questions: {
+        Row: {
+          answer_type: string
+          bot_customization_id: string
+          created_at: string
+          disqualifier_rule: string | null
+          id: string
+          is_required: boolean
+          multiple_choice_options: Json | null
+          order_index: number
+          question_text: string
+          updated_at: string
+        }
+        Insert: {
+          answer_type: string
+          bot_customization_id: string
+          created_at?: string
+          disqualifier_rule?: string | null
+          id?: string
+          is_required?: boolean
+          multiple_choice_options?: Json | null
+          order_index: number
+          question_text: string
+          updated_at?: string
+        }
+        Update: {
+          answer_type?: string
+          bot_customization_id?: string
+          created_at?: string
+          disqualifier_rule?: string | null
+          id?: string
+          is_required?: boolean
+          multiple_choice_options?: Json | null
+          order_index?: number
+          question_text?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "qualification_questions_bot_customization_id_fkey"
+            columns: ["bot_customization_id"]
+            isOneToOne: false
+            referencedRelation: "bot_customizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       qualification_status: {
         Row: {
           automation_enabled: boolean
@@ -739,6 +1136,30 @@ export type Database = {
           },
         ]
       }
+      roles: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          permissions: Json | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          permissions?: Json | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          permissions?: Json | null
+        }
+        Relationships: []
+      }
       team_members: {
         Row: {
           joined_at: string
@@ -781,6 +1202,7 @@ export type Database = {
           id: string
           manager_id: string
           name: string
+          organization_id: string | null
           updated_at: string
         }
         Insert: {
@@ -788,6 +1210,7 @@ export type Database = {
           id?: string
           manager_id: string
           name: string
+          organization_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -795,6 +1218,7 @@ export type Database = {
           id?: string
           manager_id?: string
           name?: string
+          organization_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -805,165 +1229,56 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "teams_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
         ]
       }
-      conversations: {
+      user_roles: {
         Row: {
+          assigned_at: string | null
+          assigned_by: string | null
           id: string
-          created_at: string
-          updated_at: string
-          contact_id: string | null
-          user_id: string | null
-          botpress_conversation_id: string | null
-          twilio_conversation_sid: string | null
-          phone_number: string
-          status: string
-          metadata: Json
+          organization_id: string
+          role_id: string
+          user_id: string
         }
         Insert: {
+          assigned_at?: string | null
+          assigned_by?: string | null
           id?: string
-          created_at?: string
-          updated_at?: string
-          contact_id?: string | null
-          user_id?: string | null
-          botpress_conversation_id?: string | null
-          twilio_conversation_sid?: string | null
-          phone_number: string
-          status?: string
-          metadata?: Json
+          organization_id: string
+          role_id: string
+          user_id: string
         }
         Update: {
+          assigned_at?: string | null
+          assigned_by?: string | null
           id?: string
-          created_at?: string
-          updated_at?: string
-          contact_id?: string | null
-          user_id?: string | null
-          botpress_conversation_id?: string | null
-          twilio_conversation_sid?: string | null
-          phone_number?: string
-          status?: string
-          metadata?: Json
+          organization_id?: string
+          role_id?: string
+          user_id?: string
         }
-      }
-      messages: {
-        Row: {
-          id: string
-          created_at: string
-          conversation_id: string
-          direction: string
-          source: string
-          message_type: string
-          content: string
-          twilio_message_sid: string | null
-          botpress_message_id: string | null
-          delivery_status: string
-          metadata: Json
-        }
-        Insert: {
-          id?: string
-          created_at?: string
-          conversation_id: string
-          direction: string
-          source: string
-          message_type?: string
-          content: string
-          twilio_message_sid?: string | null
-          botpress_message_id?: string | null
-          delivery_status?: string
-          metadata?: Json
-        }
-        Update: {
-          id?: string
-          created_at?: string
-          conversation_id?: string
-          direction?: string
-          source?: string
-          message_type?: string
-          content?: string
-          twilio_message_sid?: string | null
-          botpress_message_id?: string | null
-          delivery_status?: string
-          metadata?: Json
-        }
-      }
-      conversations: {
-        Row: {
-          id: string
-          created_at: string
-          updated_at: string
-          contact_id: string | null
-          user_id: string | null
-          botpress_conversation_id: string | null
-          twilio_conversation_sid: string | null
-          phone_number: string
-          status: string
-          metadata: Json
-        }
-        Insert: {
-          id?: string
-          created_at?: string
-          updated_at?: string
-          contact_id?: string | null
-          user_id?: string | null
-          botpress_conversation_id?: string | null
-          twilio_conversation_sid?: string | null
-          phone_number: string
-          status?: string
-          metadata?: Json
-        }
-        Update: {
-          id?: string
-          created_at?: string
-          updated_at?: string
-          contact_id?: string | null
-          user_id?: string | null
-          botpress_conversation_id?: string | null
-          twilio_conversation_sid?: string | null
-          phone_number?: string
-          status?: string
-          metadata?: Json
-        }
-      }
-      messages: {
-        Row: {
-          id: string
-          created_at: string
-          conversation_id: string
-          direction: string
-          source: string
-          message_type: string
-          content: string
-          twilio_message_sid: string | null
-          botpress_message_id: string | null
-          delivery_status: string
-          metadata: Json
-        }
-        Insert: {
-          id?: string
-          created_at?: string
-          conversation_id: string
-          direction: string
-          source: string
-          message_type?: string
-          content: string
-          twilio_message_sid?: string | null
-          botpress_message_id?: string | null
-          delivery_status?: string
-          metadata?: Json
-        }
-        Update: {
-          id?: string
-          created_at?: string
-          conversation_id?: string
-          direction?: string
-          source?: string
-          message_type?: string
-          content?: string
-          twilio_message_sid?: string | null
-          botpress_message_id?: string | null
-          delivery_status?: string
-          metadata?: Json
-        }
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_roles_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
@@ -1005,9 +1320,29 @@ export type Database = {
       }
     }
     Functions: {
-      get_contacts_with_details: {
-        Args: { user_id: string }
-        Returns: Json
+      expire_old_invitations: { Args: never; Returns: undefined }
+      get_contacts_with_details: { Args: { user_id: string }; Returns: Json }
+      get_user_organization: { Args: { p_user_id: string }; Returns: string }
+      get_user_properties: {
+        Args: { p_user_id: string }
+        Returns: {
+          address: string
+          city: string
+          organization_id: string
+          property_id: string
+          state: string
+        }[]
+      }
+      get_user_role: {
+        Args: { p_organization_id: string; p_user_id: string }
+        Returns: {
+          role_id: string
+          role_name: string
+        }[]
+      }
+      is_user_admin: {
+        Args: { p_organization_id: string; p_user_id: string }
+        Returns: boolean
       }
     }
     Enums: {
@@ -1192,6 +1527,7 @@ export type CompositeTypes<
 // Export commonly used types
 export type ConversationSummary = Database['public']['Views']['conversation_summaries']['Row']
 export type Message = Database['public']['Tables']['messages']['Row']
+export type ZillowIntegrationStatus = Database['public']['Enums']['zillow_integration_status']
 
 export const Constants = {
   public: {
