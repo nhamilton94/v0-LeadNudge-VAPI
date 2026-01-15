@@ -15,6 +15,7 @@ import {
   LogOut,
   Settings,
   Puzzle,
+  Building2,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -38,6 +39,11 @@ const sidebarItems = [
     title: "Tasks",
     icon: FileText,
     href: "/tasks",
+  },
+  {
+    title: "Properties",
+    icon: Building2,
+    href: "/properties",
   },
   {
     title: "Contacts",
@@ -87,7 +93,7 @@ export function Sidebar() {
     const newState = !isCollapsed
     setIsCollapsed(newState)
     localStorage.setItem("sidebarCollapsed", String(newState))
-    
+
     // Dispatch custom event for same-window communication
     window.dispatchEvent(new CustomEvent("sidebarToggle", { detail: { collapsed: newState } }))
   }
