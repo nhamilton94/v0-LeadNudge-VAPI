@@ -1,5 +1,4 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/utils/supabase/server"
 import { createServiceClient } from "@/utils/supabase/service"
 import axios from "axios"
 
@@ -44,8 +43,7 @@ export async function POST(request: NextRequest) {
     console.log("Request method:", request.method)
     console.log("Request headers:", Object.fromEntries(request.headers.entries()))
     
-    const supabase = createClient()
-    const supabaseService = createServiceClient() // For RLS bypass on property operations
+    const supabaseService = createServiceClient() // Service role bypasses RLS completely
 
     // Parse the request body
     const body: ZillowContactRequest = await request.json()
@@ -66,7 +64,7 @@ export async function POST(request: NextRequest) {
     const lead_status = body.lead_status || "new lead"
 
     // Query the profiles table for the user that owns the contact
-    const { data: profileData, error: profileError } = await supabase
+    const { data: profileData, error: profileError } = await supabaseService
       .from("profiles")
       .select("id, email, zillow_integration_status, organization_id")
       .eq("email", body.listingContactEmail)
@@ -84,7 +82,7 @@ export async function POST(request: NextRequest) {
     // Update integration status to 'active' if it's not already active
     // This indicates we're successfully receiving leads from Zillow
     if (profileData.zillow_integration_status !== "active") {
-      const { error: updateError } = await supabase
+      const { error: updateError } = await supabaseService
         .from("profiles")
         .update({
           zillow_integration_status: "active",
@@ -248,7 +246,7 @@ export async function POST(request: NextRequest) {
 
     // Insert the contact into the contacts table
     // Each Zillow inquiry creates a separate contact record for better tracking
-    const { data: contactResult, error: contactError } = await supabase
+    const { data: contactResult, error: contactError } = await supabaseService
       .from("contacts")
       .insert(contactData)
       .select()
@@ -274,7 +272,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create qualification_status record with automation enabled by default
-    const { error: qualError } = await supabase
+    const { error: qualError } = await supabaseService
       .from("qualification_status")
       .upsert({
         contact_id: contact.id,
