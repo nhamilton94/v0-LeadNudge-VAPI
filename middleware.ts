@@ -38,6 +38,12 @@ export async function middleware(request: NextRequest) {
       return NextResponse.next()
     }
 
+    // Explicitly skip middleware for Zillow webhook to ensure it processes correctly
+    if (request.nextUrl.pathname === "/api/zillowcontact") {
+      console.log("Skipping middleware for Zillow webhook endpoint")
+      return NextResponse.next()
+    }
+
     // Create the Supabase client for middleware
     const { supabase, response } = createMiddlewareSupabaseClient(request)
 
