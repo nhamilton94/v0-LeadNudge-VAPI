@@ -8,7 +8,6 @@ import {
   Calendar,
   ChevronLeft,
   ChevronRight,
-  FileText,
   LayoutDashboard,
   MessageSquare,
   Users,
@@ -35,11 +34,11 @@ const sidebarItems = [
     icon: MessageSquare,
     href: "/messages",
   },
-  {
-    title: "Tasks",
-    icon: FileText,
-    href: "/tasks",
-  },
+  // {
+  //   title: "Tasks",
+  //   icon: FileText,
+  //   href: "/tasks",
+  // },
   {
     title: "Properties",
     icon: Building2,
@@ -60,11 +59,11 @@ const sidebarItems = [
     icon: Puzzle,
     href: "/integrations",
   },
-  {
-    title: "Reports",
-    icon: LayoutDashboard,
-    href: "/reports",
-  },
+  // {
+  //   title: "Reports",
+  //   icon: LayoutDashboard,
+  //   href: "/reports",
+  // },
   {
     title: "Settings",
     icon: Settings,
