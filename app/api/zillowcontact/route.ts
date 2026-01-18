@@ -87,6 +87,7 @@ export async function POST(request: NextRequest) {
         .update({
           zillow_integration_status: "active",
           updated_at: new Date().toISOString(),
+          zillow_premier_email: body.listingContactEmail
         })
         .eq("id", profileData.id)
 
