@@ -103,7 +103,6 @@ export function ChatInterface({ conversationId, conversation, targetMessageId, o
       navigateToMessage()
     }
   }, [targetMessageId, conversationId, isLoading, messages.length, loadAllMessagesForNavigation, onMessageNavigated])
-    conversation: fetchedConversation
 
   // Helper function to scroll to target message (instant, no animation)
   const scrollToTargetMessage = (targetElement: Element) => {
