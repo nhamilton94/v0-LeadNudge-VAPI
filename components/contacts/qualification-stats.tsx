@@ -1,20 +1,9 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-
-interface Contact {
-  qualification_status?: {
-    qualification_status: string
-    qualification_progress: number
-  }
-  qualification_details?: {
-    income?: number
-    credit_score?: string
-    desired_price?: string
-  }
-}
+import { ContactWithDetails } from "@/types/contact"
 
 interface QualificationStatsProps {
-  contact: Contact
+  contact: ContactWithDetails
 }
 
 export function QualificationStats({ contact }: QualificationStatsProps) {

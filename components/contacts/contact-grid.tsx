@@ -3,22 +3,13 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
-
-interface Contact {
-  id: number
-  name: string
-  title: string
-  image: string
-  email: string
-  phone: string
-  leadStatus?: string
-}
+import { ContactWithDetails } from "@/types/contact"
 
 // Update the ContactGridProps interface to make selectedContact optional
 interface ContactGridProps {
-  contacts: Contact[]
-  selectedContact: Contact | null
-  onSelect: (contact: Contact) => void
+  contacts: ContactWithDetails[]
+  selectedContact: ContactWithDetails | null
+  onSelect: (contact: ContactWithDetails) => void
 }
 
 // Update the className logic to handle when selectedContact is null
@@ -36,23 +27,23 @@ export function ContactGrid({ contacts, selectedContact, onSelect }: ContactGrid
         >
           <CardHeader className="flex flex-row items-center gap-4 space-y-0">
             <Avatar className="h-12 w-12">
-              <AvatarImage src={contact.image} alt={contact.name} />
+              <AvatarImage src={contact.image_url || ''} alt={contact.name} />
               <AvatarFallback>{contact.name[0]}</AvatarFallback>
             </Avatar>
             <div className="flex-1">
               <h3 className="font-semibold">{contact.name}</h3>
-              <p className="text-sm text-muted-foreground">{contact.title}</p>
+              <p className="text-sm text-muted-foreground">{contact.title || 'No title'}</p>
             </div>
           </CardHeader>
           <CardContent>
             <div className="text-sm text-muted-foreground">
-              <p>{contact.email}</p>
-              <p>{contact.phone}</p>
+              <p>{contact.email || 'No email'}</p>
+              <p>{contact.phone || 'No phone'}</p>
             </div>
-            {contact.leadStatus && (
+            {contact.lead_status && (
               <div className="mt-2">
                 <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
-                  {contact.leadStatus}
+                  {contact.lead_status.replace('_', ' ')}
                 </span>
               </div>
             )}
