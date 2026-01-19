@@ -104,6 +104,7 @@ export function ChatInterface({ conversationId, conversation, targetMessageId, o
     }
   }, [targetMessageId, conversationId, isLoading, messages.length, loadAllMessagesForNavigation, onMessageNavigated])
 
+
   // Helper function to scroll to target message (instant, no animation)
   const scrollToTargetMessage = (targetElement: Element) => {
     targetElement.scrollIntoView({ behavior: "instant", block: "center" })

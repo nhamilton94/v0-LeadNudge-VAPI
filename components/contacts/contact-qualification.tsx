@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { ContactWithDetails } from "@/types/contact"
 
+
 interface ContactQualificationProps {
   contact: ContactWithDetails
 }
