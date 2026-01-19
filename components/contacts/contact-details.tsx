@@ -1,18 +1,8 @@
 import { Card, CardContent } from "@/components/ui/card"
-
-interface Contact {
-  name: string
-  title: string
-  email: string
-  phone: string
-  linkedin: string
-  industry: string
-  leadSource: string
-  leadStatus?: string
-}
+import { ContactWithDetails } from "@/types/contact"
 
 interface ContactDetailsProps {
-  contact: Contact
+  contact: ContactWithDetails
 }
 
 export function ContactDetails({ contact }: ContactDetailsProps) {
@@ -21,18 +11,18 @@ export function ContactDetails({ contact }: ContactDetailsProps) {
       <CardContent className="p-6">
         <div className="space-y-4">
           <div>
-            <h3 className="font-medium">{contact.title}</h3>
+            <h3 className="font-medium">{contact.title || 'No title'}</h3>
             <div className="mt-1 text-sm text-muted-foreground">
-              <p>Email: {contact.email}</p>
-              <p>Phone: {contact.phone}</p>
-              <p>LinkedIn: {contact.linkedin}</p>
-              <p>Industry: {contact.industry}</p>
-              <p>Lead Source: {contact.lead_source}</p>
+              <p>Email: {contact.email || 'No email'}</p>
+              <p>Phone: {contact.phone || 'No phone'}</p>
+              <p>LinkedIn: {contact.linkedin || 'No LinkedIn'}</p>
+              <p>Industry: {contact.industry || 'No industry'}</p>
+              <p>Lead Source: {contact.lead_source || 'Unknown'}</p>
               {contact.lead_status && (
                 <div className="mt-2">
                   <span className="text-sm font-medium">Lead Status: </span>
                   <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
-                    {contact.lead_status}
+                    {contact.lead_status.replace('_', ' ')}
                   </span>
                 </div>
               )}

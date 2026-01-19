@@ -22,27 +22,10 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/components/ui/use-toast"
 import { supabase } from "@/utils/supabase/client"
+import { Property } from "@/types/property"
 
 type ViewMode = "list" | "grid"
 type StatusFilter = "all" | "active" | "pending" | "sold" | "off_market"
-
-export interface Property {
-  id: string
-  address: string
-  city: string
-  state: string
-  zip: string
-  property_type: string
-  status: string
-  price: number | null
-  bedrooms: number | null
-  bathrooms: number | null
-  square_feet: number | null
-  organization_id: string | null
-  created_by: string
-  created_at: string
-  updated_at: string
-}
 
 export default function PropertiesPage() {
   const router = useRouter()
@@ -343,7 +326,7 @@ export default function PropertiesPage() {
                     <div className="rounded-lg border bg-muted/50 p-4">
                       <h3 className="font-medium mb-2">Description</h3>
                       <p className="text-sm text-muted-foreground">
-                        {selectedProperty.description || "No description available."}
+                        {"No description available for this property."}
                       </p>
                     </div>
                   </div>
