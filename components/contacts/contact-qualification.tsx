@@ -1,44 +1,11 @@
 import { Progress } from "@/components/ui/progress"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { ContactWithDetails } from "@/types/contact"
 
-// Update the Contact interface to match the nested structure from the API
-interface Contact {
-  qualification_status?: {
-    contact_id: string
-    qualification_status: string
-    qualification_progress: number
-    qualification_date?: string
-    automation_enabled: boolean
-    updated_at: string
-    updated_by: string
-  }
-  qualification_details?: {
-    contact_id: string
-    income?: number
-    credit_score?: string
-    desired_price?: string
-    move_in_timeline?: string
-    preferred_locations?: string[]
-    verified: boolean
-    verification_date: string
-    verified_by: string
-  }
-  interested_property?: {
-    id: string
-    address?: string
-    city?: string// Include other property fields you need
-    state?: string
-    zip?: string
-    price?: number
-    bedrooms?: number
-    bathrooms?: number
-    // ... add more properties as needed
-  }
-}
 
 interface ContactQualificationProps {
-  contact: Contact
+  contact: ContactWithDetails
 }
 
 export function ContactQualification({ contact }: ContactQualificationProps) {

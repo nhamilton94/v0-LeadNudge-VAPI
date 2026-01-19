@@ -20,43 +20,11 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
-
-interface Contact {
-  id: number
-  name: string
-  phone: string
-  first_name: string
-  last_name: string
-  email: string
-  qualification_status?: {
-    qualification_status: string
-    automation_enabled: boolean
-  }
-  conversations?: {
-    id: number
-    conversation_status: 'not_started' | 'active' | 'paused' | 'ended'
-    botpress_conversation_id?: string
-    botpress_user_id?: string
-    last_outreach_attempt?: string
-    automation_pause_reason?: string
-    ended_at?: string
-  }[]
-  interested_property?: {
-    id: string
-    address?: string
-    city?: string// Include other property fields you need
-    state?: string
-    zip?: string
-    price?: number
-    bedrooms?: number
-    bathrooms?: number
-    // ... add more properties as needed
-  }
-}
+import { ContactWithDetails } from "@/types/contact"
 
 interface QualificationControlsProps {
-  contact: Contact
-  userEmail: String
+  contact: ContactWithDetails
+  userEmail: string
 }
 
 interface APIErrorResponse {
@@ -67,13 +35,9 @@ interface APIErrorResponse {
   }
 }
 
-// Default test phone number for reference
-const DEFAULT_TEST_PHONE_NUMBER = "+19089433888"//"+16307477672"//"+16099635631"
-
 export function QualificationControls({ contact, userEmail }: QualificationControlsProps) {
   const [isAutomated, setIsAutomated] = useState(contact.qualification_status?.automation_enabled || false)
   const [isLoading, setIsLoading] = useState(false)
-  const [useTestNumber, setUseTestNumber] = useState(false)
   const [conversationStatus, setConversationStatus] = useState<'not_started' | 'active' | 'paused' | 'ended'>(
     contact.conversations?.[0]?.conversation_status || 'not_started'
   )
@@ -264,7 +228,7 @@ export function QualificationControls({ contact, userEmail }: QualificationContr
         toast({
           variant: "destructive",
           title: "Cannot Resume",
-          description: "This conversation has ended. Use 'Reset Qualification' to start fresh.",
+          description: "This conversation has ended.",
         })
         return
       }
@@ -281,14 +245,7 @@ export function QualificationControls({ contact, userEmail }: QualificationContr
     }
   }
 
-  const handleResetQualification = async () => {
-    try {
-      // Here you would make an API call to reset the qualification
-      console.log(`Reset qualification for contact ${contact.id}`)
-    } catch (error) {
-      console.error("Failed to reset qualification:", error)
-    }
-  }
+
 
   const getErrorMessage = (error: APIErrorResponse) => {
     switch (error.error.code) {
@@ -316,10 +273,9 @@ export function QualificationControls({ contact, userEmail }: QualificationContr
         body: JSON.stringify({
           contactId: contact.id,
           phoneNumber: contact.phone,
-          useTestNumber: useTestNumber,
           firstName: contact.name,
           host_email: userEmail,
-          address: contact.interested_property?.address,
+          address: contact.interested_property_details?.address,
           attendee_email: contact.email
         }),
 
@@ -333,8 +289,8 @@ export function QualificationControls({ contact, userEmail }: QualificationContr
       }
   
       toast({
-        title: useTestNumber ? "Test Qualification Started" : "Qualification Started",
-        description: `Initiating call to ${useTestNumber ? "test number" : contact.name} at ${useTestNumber ? DEFAULT_TEST_PHONE_NUMBER : contact.phone}`,
+        title: "Qualification Started",
+        description: `Initiating call to ${contact.name} at ${contact.phone}`,
       })
 
       console.log("Call initiated:", data)
@@ -346,7 +302,7 @@ export function QualificationControls({ contact, userEmail }: QualificationContr
           useTestNumber: useTestNumber,
           firstName: contact.first_name,
           host_email: userEmail,
-          address: contact.interested_property?.address,
+          address: contact.interested_property_details?.address,
           attendee_email: contact.email
         })
 
@@ -415,51 +371,10 @@ export function QualificationControls({ contact, userEmail }: QualificationContr
           </>
         )}
 
-        <Separator className="my-4" />
 
-        <div className="flex items-center justify-between space-x-4">
-          <div className="flex-1 space-y-1">
-            <div className="flex items-center gap-2">
-              <Phone className="h-4 w-4" />
-              <span className="font-medium">Test Mode</span>
-              {useTestNumber && (
-                <Badge variant="outline" className="bg-yellow-50 text-yellow-800 hover:bg-yellow-50">
-                  Testing
-                </Badge>
-              )}
-            </div>
-            <p className="text-sm text-muted-foreground">Use default test phone number instead of contact's number</p>
-            {useTestNumber && (
-              <div className="flex items-center mt-2 text-sm text-yellow-600 bg-yellow-50 p-2 rounded">
-                <AlertTriangle className="h-4 w-4 mr-2" />
-                Using test number: {DEFAULT_TEST_PHONE_NUMBER}
-              </div>
-            )}
-          </div>
-          <Switch checked={useTestNumber} onCheckedChange={setUseTestNumber} />
-        </div>
       </CardContent>
       <CardFooter className="justify-between space-x-2">
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button variant="outline">
-              <RotateCcw className="mr-2 h-4 w-4" />
-              Reset Qualification
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This will reset all qualification progress and start the process over. This action cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleResetQualification}>Reset</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+
 
         {/* Smart state-based buttons - only show when automation is enabled */}
         {isAutomated && conversationStatus === 'not_started' && (
@@ -537,7 +452,7 @@ export function QualificationControls({ contact, userEmail }: QualificationContr
             ) : (
               <>
                 <Phone className="mr-2 h-4 w-4" />
-                {useTestNumber ? "Start Test Call" : "Start Phone Call"}
+                Start Phone Call
               </>
             )}
           </Button>

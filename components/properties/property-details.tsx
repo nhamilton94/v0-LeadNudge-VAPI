@@ -1,19 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card"
-
-interface Property {
-  address: string
-  city: string
-  state: string
-  zip: string
-  property_type: string
-  status: string
-  price: number | null
-  bedrooms: number | null
-  bathrooms: number | null
-  square_feet: number | null
-  created_at: string
-  updated_at: string
-}
+import { Property } from "@/types/property"
 
 interface PropertyDetailsProps {
   property: Property

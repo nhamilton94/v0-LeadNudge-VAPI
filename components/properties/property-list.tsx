@@ -2,16 +2,7 @@
 
 import { cn } from "@/lib/utils"
 import { Home, DollarSign } from "lucide-react"
-
-interface Property {
-  id: string
-  address: string
-  city: string
-  state: string
-  price: number | null
-  status: string
-  property_type: string
-}
+import { Property } from "@/types/property"
 
 interface PropertyListProps {
   properties: Property[]

@@ -127,7 +127,7 @@ async function createCalendarEvent(
   last_name: string,
   timeMin: string,
   timeMax: string,
-  attendeeEmail: string,
+  attendeeEmail: string | null,
 ) {
   try {
     // Encode email for use in URL
