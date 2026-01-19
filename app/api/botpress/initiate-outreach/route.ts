@@ -55,6 +55,70 @@ export async function POST(request: NextRequest) {
       .eq("contact_id", contact.id)
       .single()
 
+    // Smart conversation state management
+    if (conversation && conversation.botpress_conversation_id) {
+      switch (conversation.conversation_status) {
+        case 'active':
+          console.log("Conversation already active for contact:", contact.id)
+          return NextResponse.json(
+            { 
+              success: true, 
+              message: "Conversation already active",
+              conversationId: conversation.id,
+              conversationStatus: conversation.conversation_status
+            },
+            { status: 200 }
+          )
+        
+        case 'paused':
+          console.log("Resuming paused conversation for contact:", contact.id)
+          // Resume without sending new message
+          const { error: resumeError } = await supabase
+            .from("conversations")
+            .update({
+              conversation_status: 'active',
+              automation_pause_reason: null
+            })
+            .eq("id", conversation.id)
+
+          if (resumeError) {
+            console.error("Error resuming conversation:", resumeError)
+            return NextResponse.json(
+              { error: "Failed to resume conversation" },
+              { status: 500 }
+            )
+          }
+
+          return NextResponse.json(
+            { 
+              success: true, 
+              message: "Conversation resumed",
+              conversationId: conversation.id,
+              conversationStatus: 'active'
+            },
+            { status: 200 }
+          )
+        
+        case 'ended':
+          console.log("Conversation has ended for contact:", contact.id)
+          return NextResponse.json(
+            { 
+              success: false,
+              error: "Conversation has ended. Use reset functionality to start a new conversation.",
+              conversationId: conversation.id,
+              conversationStatus: conversation.conversation_status
+            },
+            { status: 400 }
+          )
+        
+        case 'not_started':
+        default:
+          // This shouldn't happen if botpress_conversation_id exists, but continue with creation
+          console.warn("Unexpected state: botpress_conversation_id exists but status is not_started")
+          break
+      }
+    }
+
     // Create conversation if it doesn't exist
     if (convError || !conversation) {
       const { data: newConversation, error: createConvError } = await supabase
@@ -63,7 +127,8 @@ export async function POST(request: NextRequest) {
           contact_id: contact.id,
           user_id: contact.created_by,
           phone_number: contact.phone,
-          status: "active"
+          status: "active",
+          conversation_status: "not_started"
         })
         .select()
         .single()
@@ -80,18 +145,6 @@ export async function POST(request: NextRequest) {
     }
 
     console.log("Using conversation with ID:", conversation.id)
-
-    // Check if Botpress integration already exists
-    if (conversation.botpress_conversation_id && conversation.botpress_user_id) {
-      return NextResponse.json(
-        { 
-          success: true, 
-          message: "Botpress conversation already exists",
-          conversationId: conversation.id 
-        },
-        { status: 200 }
-      )
-    }
 
     try {
       console.log("Starting Botpress integration setup...")
@@ -165,12 +218,14 @@ export async function POST(request: NextRequest) {
         tags: {}
       })
 
-      // 6. Update conversation with actual Botpress IDs
+      // 6. Update conversation with actual Botpress IDs and set status to active
       const { error: updateError } = await supabase
         .from("conversations")
         .update({
           botpress_conversation_id: botpressConversation.id,
-          botpress_user_id: user.id
+          botpress_user_id: user.id,
+          conversation_status: 'active',
+          last_outreach_attempt: new Date().toISOString()
         })
         .eq("id", conversation.id)
 
@@ -183,6 +238,7 @@ export async function POST(request: NextRequest) {
         success: true,
         message: "Botpress outreach initiated successfully",
         conversationId: conversation.id,
+        conversationStatus: 'active',
         botpressConversationId: botpressConversation.id,
         botpressUserId: user.id
       })

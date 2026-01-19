@@ -325,11 +325,15 @@ export type Database = {
       }
       conversations: {
         Row: {
+          automation_pause_reason: string | null
           botpress_conversation_id: string | null
           botpress_user_id: string | null
           contact_id: string | null
+          conversation_status: Database["public"]["Enums"]["conversation_status"] | null
           created_at: string
+          ended_at: string | null
           id: string
+          last_outreach_attempt: string | null
           metadata: Json | null
           organization_id: string | null
           phone_number: string
@@ -339,11 +343,15 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          automation_pause_reason?: string | null
           botpress_conversation_id?: string | null
           botpress_user_id?: string | null
           contact_id?: string | null
+          conversation_status?: Database["public"]["Enums"]["conversation_status"] | null
           created_at?: string
+          ended_at?: string | null
           id?: string
+          last_outreach_attempt?: string | null
           metadata?: Json | null
           organization_id?: string | null
           phone_number: string
@@ -353,11 +361,15 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          automation_pause_reason?: string | null
           botpress_conversation_id?: string | null
           botpress_user_id?: string | null
           contact_id?: string | null
+          conversation_status?: Database["public"]["Enums"]["conversation_status"] | null
           created_at?: string
+          ended_at?: string | null
           id?: string
+          last_outreach_attempt?: string | null
           metadata?: Json | null
           organization_id?: string | null
           phone_number?: string
@@ -1356,6 +1368,7 @@ export type Database = {
         | "status"
       attendee_role: "organizer" | "required" | "optional"
       attendee_type: "user" | "contact" | "external"
+      conversation_status: "not_started" | "active" | "paused" | "ended"
       event_status: "scheduled" | "cancelled" | "completed"
       event_type: "tour" | "meeting" | "call" | "showing" | "appointment"
       interest_level: "high" | "medium" | "low"
