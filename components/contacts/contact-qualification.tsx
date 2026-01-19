@@ -2,14 +2,7 @@ import { Progress } from "@/components/ui/progress"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { ContactWithDetails } from "@/types/contact"
-    state?: string
-    zip?: string
-    price?: number
-    bedrooms?: number
-    bathrooms?: number
-    // ... add more properties as needed
-  }
-}
+
 
 interface ContactQualificationProps {
   contact: ContactWithDetails
