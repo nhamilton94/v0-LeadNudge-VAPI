@@ -133,7 +133,8 @@ export async function POST(request: Request) {
           contact_id: contact.id,
           user_id: contact.user_id,
           phone_number: From,
-          status: "active"
+          status: "active",
+          conversation_status: "not_started"
         })
         .select()
         .single()
@@ -177,8 +178,9 @@ export async function POST(request: Request) {
       )
     }
 
-    // Forward to Botpress if conversation has botpress_conversation_id
-    if (conversation.botpress_conversation_id) {
+    // Forward to Botpress only if conversation is active
+    if (conversation.botpress_conversation_id && conversation.conversation_status === 'active') {
+      console.log(`Forwarding message to Botpress - conversation status: ${conversation.conversation_status}`)
       try {
         await axios.post(`${process.env.BOTPRESS_WEBHOOK_URL}`, {
           userId: contact.id,
@@ -189,6 +191,9 @@ export async function POST(request: Request) {
         console.error("Error forwarding to Botpress:", botpressError)
         // Don't fail the webhook if Botpress forwarding fails
       }
+    } else if (conversation.botpress_conversation_id && conversation.conversation_status !== 'active') {
+      console.log(`Message not forwarded to Botpress - conversation status: ${conversation.conversation_status}`)
+      console.log("Message will be stored but automation is paused/ended")
     } else {
       // If no Botpress conversation exists, create one by calling your integration
       try {
