@@ -24,7 +24,7 @@ import { ContactWithDetails } from "@/types/contact"
 
 interface QualificationControlsProps {
   contact: ContactWithDetails
-  userEmail: String
+  userEmail: string
 }
 
 interface APIErrorResponse {
