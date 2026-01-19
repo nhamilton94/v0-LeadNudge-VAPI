@@ -3,7 +3,8 @@
 import type React from "react"
 
 import { useEffect, useRef, useState, useCallback } from "react"
-import { Phone, User, X, MessageCircle, Mail, MapPin, Calendar, Tag, Briefcase } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { Phone, User, MessageCircle, Mail, MapPin, Tag, Briefcase } from "lucide-react"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -14,9 +15,11 @@ import { cn } from "@/lib/utils"
 import { useMessages } from "@/lib/hooks/use-conversations"
 import { Message } from "@/lib/database.types"
 import { ConversationWithDetails } from "@/lib/services/conversations-service"
-import { markMessagesAsRead, markSpecificMessagesAsRead } from "@/lib/services/conversations-service"
-import { getContactByConversationId, Contact } from "@/lib/services/contacts-service"
+import { markSpecificMessagesAsRead } from "@/lib/services/conversations-service"
+import { getContactByConversationId } from "@/lib/services/contacts-service"
+import { ContactWithDetails } from "@/types/contact"
 import { useAuth } from "@/components/auth/supabase-auth-provider"
+import { supabase } from "@/utils/supabase/client"
 
 interface ChatInterfaceProps {
   conversationId: string
@@ -28,14 +31,16 @@ interface ChatInterfaceProps {
 
 export function ChatInterface({ conversationId, conversation, targetMessageId, onMessagesRead, onMessageNavigated }: ChatInterfaceProps) {
   const { user } = useAuth()
+  const router = useRouter()
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const [isContactOpen, setIsContactOpen] = useState(false)
   const [isInitialLoad, setIsInitialLoad] = useState(true)
   const [previousConversationId, setPreviousConversationId] = useState<string | null>(null)
-  const [contactDetails, setContactDetails] = useState<Contact | null>(null)
+  const [contactDetails, setContactDetails] = useState<ContactWithDetails | null>(null)
   const [isLoadingContact, setIsLoadingContact] = useState(false)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [propertyDetails, setPropertyDetails] = useState<{id: string, address: string, city?: string, state?: string} | null>(null)
 
   const {
     messages,
@@ -98,7 +103,7 @@ export function ChatInterface({ conversationId, conversation, targetMessageId, o
       navigateToMessage()
     }
   }, [targetMessageId, conversationId, isLoading, messages.length, loadAllMessagesForNavigation, onMessageNavigated])
-    conversation: fetchedConversation
+
 
   // Helper function to scroll to target message (instant, no animation)
   const scrollToTargetMessage = (targetElement: Element) => {
@@ -148,18 +153,22 @@ export function ChatInterface({ conversationId, conversation, targetMessageId, o
           .filter(entry => entry.isIntersecting)
           .map(entry => entry.target.getAttribute('data-message-id'))
           .filter(Boolean)
-          .filter(messageId => {
+          .filter((messageId): messageId is string => {
+            // Skip if messageId is null
+            if (!messageId) return false
             // Skip if already processed
             if (markedAsReadRef.current.has(messageId)) return false
             
             // Skip if message is already read in database
             const message = messages.find(m => m.id === messageId)
-            return message && !(message as any).is_read
+            return message ? !(message as any).is_read : false
           })
 
         if (newlyVisibleMessages.length > 0) {
           // Add to marked set immediately to prevent duplicate calls
-          newlyVisibleMessages.forEach(id => markedAsReadRef.current.add(id))
+          newlyVisibleMessages.forEach(id => {
+            if (id) markedAsReadRef.current.add(id)
+          })
           
           // Debounce the API call
           if (markReadTimeoutRef.current) {
@@ -167,7 +176,7 @@ export function ChatInterface({ conversationId, conversation, targetMessageId, o
           }
           
           markReadTimeoutRef.current = setTimeout(() => {
-            markVisibleMessagesAsRead(conversationId, user.id, newlyVisibleMessages)
+            markVisibleMessagesAsRead(conversationId, user.id, newlyVisibleMessages.filter((id): id is string => Boolean(id)))
           }, 500) // 500ms debounce
         }
       },
@@ -219,18 +228,97 @@ export function ChatInterface({ conversationId, conversation, targetMessageId, o
       try {
         const contact = await getContactByConversationId(conversationId)
         setContactDetails(contact)
+        
+        // Fetch property details if contact has interested_property
+        if (contact?.interested_property && !propertyDetails) {
+          await fetchPropertyDetails(contact.interested_property)
+        }
       } catch (error) {
         console.error('Error fetching contact details:', error)
       } finally {
         setIsLoadingContact(false)
       }
     }
-  }, [conversationId, contactDetails, isLoadingContact])
+  }, [conversationId, contactDetails, isLoadingContact, propertyDetails])
+
+  // Fetch property details
+  const fetchPropertyDetails = async (propertyId: string) => {
+    try {
+      if (!user?.id) {
+        console.warn('User not authenticated, cannot fetch property details')
+        return
+      }
+
+      // Check if user has access to this property
+      const { data: assignment, error: assignmentError } = await supabase
+        .from('property_assignments')
+        .select('property_id')
+        .eq('property_id', propertyId)
+        .eq('user_id', user.id)
+        .single()
+
+      if (assignmentError || !assignment) {
+        console.warn('Property not found or access denied:', propertyId)
+        // Fallback to showing property ID
+        setPropertyDetails({
+          id: propertyId,
+          address: `Property ${propertyId}`,
+          city: '',
+          state: ''
+        })
+        return
+      }
+
+      // Fetch property details
+      const { data: property, error: propertyError } = await supabase
+        .from('properties')
+        .select('id, address, city, state')
+        .eq('id', propertyId)
+        .single()
+
+      if (propertyError || !property) {
+        console.error('Error fetching property details:', propertyError)
+        // Fallback to showing property ID
+        setPropertyDetails({
+          id: propertyId,
+          address: `Property ${propertyId}`,
+          city: '',
+          state: ''
+        })
+        return
+      }
+
+      setPropertyDetails({
+        id: property.id,
+        address: property.address,
+        city: property.city,
+        state: property.state
+      })
+    } catch (error) {
+      console.error('Error fetching property details:', error)
+      // Fallback to showing property ID
+      setPropertyDetails({
+        id: propertyId,
+        address: `Property ${propertyId}`,
+        city: '',
+        state: ''
+      })
+    }
+  }
+
+  // Handle property link click
+  const handlePropertyClick = (e: React.MouseEvent) => {
+    e.preventDefault()
+    if (contactDetails?.interested_property) {
+      router.push(`/properties/${contactDetails.interested_property}`)
+    }
+  }
 
   // Reset contact details when conversation changes
   useEffect(() => {
     if (conversationId !== previousConversationId) {
       setContactDetails(null)
+      setPropertyDetails(null)
       previousMessageCount.current = 0 // Reset message count tracking
     }
   }, [conversationId, previousConversationId])
@@ -403,12 +491,6 @@ export function ChatInterface({ conversationId, conversation, targetMessageId, o
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {conversation.phone_number && (
-            <Button variant="ghost" size="icon" onClick={handleCall}>
-              <Phone className="h-4 w-4" />
-              <span className="sr-only">Call contact</span>
-            </Button>
-          )}
           <Sheet open={isContactOpen} onOpenChange={setIsContactOpen}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" onClick={handleContactModalOpen}>
@@ -535,9 +617,9 @@ export function ChatInterface({ conversationId, conversation, targetMessageId, o
                         <div className="flex items-center gap-3">
                           <span className="font-medium text-muted-foreground min-w-[70px]">Status:</span>
                           <Badge variant={
-                            contactDetails.lead_status === 'qualified' ? 'default' :
-                            contactDetails.lead_status === 'in_progress' ? 'secondary' :
-                            contactDetails.lead_status === 'not_qualified' ? 'destructive' :
+                            contactDetails.lead_status === 'closed' ? 'default' :
+                            contactDetails.lead_status === 'negotiating' || contactDetails.lead_status === 'contract sent' ? 'secondary' :
+                            contactDetails.lead_status === 'lost' ? 'destructive' :
                             'outline'
                           } className="text-sm">
                             {contactDetails.lead_status || 'Unknown'}
@@ -557,10 +639,22 @@ export function ChatInterface({ conversationId, conversation, targetMessageId, o
                       <div>
                         <div className="flex items-center gap-3 mb-4">
                           <MapPin className="h-5 w-5 text-primary" />
-                          <h4 className="font-medium text-lg">Property Interest</h4>
+                          <h4 className="font-medium text-lg">Interested Property</h4>
                         </div>
                         <div className="pl-8">
-                          <p className="text-sm">{contactDetails.interested_property}</p>
+                          <button
+                            onClick={handlePropertyClick}
+                            className="text-primary hover:underline text-sm font-medium inline-flex items-center gap-2 cursor-pointer bg-transparent border-none p-0"
+                          >
+                            <MapPin className="h-4 w-4" />
+                            {propertyDetails 
+                              ? `${propertyDetails.address}${propertyDetails.city ? `, ${propertyDetails.city}` : ''}${propertyDetails.state ? `, ${propertyDetails.state}` : ''}`
+                              : `Property ${contactDetails.interested_property}`
+                            }
+                          </button>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Click to view property details
+                          </p>
                         </div>
                       </div>
                     )}
@@ -660,7 +754,7 @@ export function ChatInterface({ conversationId, conversation, targetMessageId, o
 
                   
                   <div
-                    ref={(el) => messagesRefs.current[message.id] = el}
+                    ref={(el) => { messagesRefs.current[message.id] = el }}
                     data-message-id={message.id}
                     className={cn(
                       "flex flex-col gap-2 animate-in fade-in slide-in-from-bottom-2 duration-300 mb-4", 

@@ -52,6 +52,7 @@ export async function POST(request: Request) {
       console.log("Validation result:", isValid)
       
       if (!isValid) {
+        console.log ("Invalid Twilio signature");
         return NextResponse.json(
           { error: "Invalid Twilio signature" },
           { status: 401 }
@@ -72,16 +73,24 @@ export async function POST(request: Request) {
     const cleanFrom = From.replace(/^\+?1?/, '').replace(/\D/g, '')
 
     const supabase = createServiceClient()
+    console.log("cleanFrom", cleanFrom);
+    console.log("From", From);
+    console.log("OR query string:", `phone.eq.${cleanFrom},phone.eq.${From}`);
 
     // Try to find existing contact by phone number
-    let { data: contact } = await supabase
+    let { data: contact, error: contactError } = await supabase
       .from("contacts")
       .select("*")
       .or(`phone.eq.${cleanFrom},phone.eq.${From}`)
+      .limit(1)
       .single()
+
+    console.log("contact query error:", contactError);
+    console.log("contact found:", contact);
 
     // If no contact found, create one
     if (!contact) {
+      console.log("No contact found, creating one");
       const { data: newContact, error: contactError } = await supabase
         .from("contacts")
         .insert({
@@ -124,7 +133,8 @@ export async function POST(request: Request) {
           contact_id: contact.id,
           user_id: contact.user_id,
           phone_number: From,
-          status: "active"
+          status: "active",
+          conversation_status: "not_started"
         })
         .select()
         .single()
@@ -168,8 +178,9 @@ export async function POST(request: Request) {
       )
     }
 
-    // Forward to Botpress if conversation has botpress_conversation_id
-    if (conversation.botpress_conversation_id) {
+    // Forward to Botpress only if conversation is active
+    if (conversation.botpress_conversation_id && conversation.conversation_status === 'active') {
+      console.log(`Forwarding message to Botpress - conversation status: ${conversation.conversation_status}`)
       try {
         await axios.post(`${process.env.BOTPRESS_WEBHOOK_URL}`, {
           userId: contact.id,
@@ -180,9 +191,13 @@ export async function POST(request: Request) {
         console.error("Error forwarding to Botpress:", botpressError)
         // Don't fail the webhook if Botpress forwarding fails
       }
+    } else if (conversation.botpress_conversation_id && conversation.conversation_status !== 'active') {
+      console.log(`Message not forwarded to Botpress - conversation status: ${conversation.conversation_status}`)
+      console.log("Message will be stored but automation is paused/ended")
     } else {
       // If no Botpress conversation exists, create one by calling your integration
       try {
+        console.log("Creating Botpress conversation");
         const botpressIntegrationUrl = process.env.BOTPRESS_INTEGRATION_URL
         if (botpressIntegrationUrl) {
           const response = await axios.post(botpressIntegrationUrl, {
@@ -195,7 +210,9 @@ export async function POST(request: Request) {
           if (response.status === 200) {
             // Update the conversation with Botpress conversation ID
             // Note: You'd need to extract the actual Botpress conversation ID from the response
+            console.log("Botpress conversation created");
             const botpressResponse = response.data
+            console.log("Botpress conversation response", botpressResponse);
             await supabase
               .from("conversations")
               .update({

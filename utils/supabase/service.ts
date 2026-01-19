@@ -1,23 +1,27 @@
 import { createClient } from "@supabase/supabase-js"
 
-// Get the environment variables
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://trsqtghplddeerdafxja.supabase.co"
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
-if (!supabaseServiceKey) {
-  console.warn("SUPABASE_SERVICE_ROLE_KEY not found. Service operations may fail.")
-}
-
-// Create a service role client that bypasses RLS
 export function createServiceClient() {
+  // Debug logging
+  console.log("Creating service client with:")
+  console.log("URL:", supabaseUrl)
+  console.log("Service key starts with:", supabaseServiceKey?.substring(0, 10) + "...")
+  console.log("Service key length:", supabaseServiceKey?.length)
+  
   if (!supabaseServiceKey) {
-    throw new Error("SUPABASE_SERVICE_ROLE_KEY is required for service operations")
+    throw new Error("SUPABASE_SERVICE_ROLE_KEY is not set")
   }
   
+  if (supabaseServiceKey.includes("anon")) {
+    throw new Error("Using anon key instead of service role key!")
+  }
+
   return createClient(supabaseUrl, supabaseServiceKey, {
     auth: {
       autoRefreshToken: false,
-      persistSession: false
-    }
+      persistSession: false,
+    },
   })
 }

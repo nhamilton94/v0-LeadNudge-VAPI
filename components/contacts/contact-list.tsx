@@ -2,19 +2,13 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
-
-interface Contact {
-  id: number
-  name: string
-  title: string
-  image_url: string
-}
+import { ContactWithDetails } from "@/types/contact"
 
 // Update the ContactListProps interface to make selectedContact optional
 interface ContactListProps {
-  contacts: Contact[]
-  selectedContact: Contact | null
-  onSelect: (contact: Contact) => void
+  contacts: ContactWithDetails[]
+  selectedContact: ContactWithDetails | null
+  onSelect: (contact: ContactWithDetails) => void
 }
 
 // Update the className logic to handle when selectedContact is null
@@ -36,7 +30,7 @@ export function ContactList({ contacts, selectedContact, onSelect }: ContactList
           </Avatar>
           <div className="flex flex-col">
             <span className="font-medium">{contact.name}</span>
-            <span className="text-sm text-muted-foreground">{contact.title}</span>
+            <span className="text-sm text-muted-foreground">{contact.title || 'No title'}</span>
           </div>
         </button>
       ))}

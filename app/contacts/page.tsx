@@ -3,7 +3,7 @@
 import { useAuth } from "@/components/auth/supabase-auth-provider"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { LayoutGrid, List, Mail, Phone, Search, SlidersHorizontal, UserCheck, UserX, Clock, Trash2 } from "lucide-react"
+import { LayoutGrid, List, Search, SlidersHorizontal, UserCheck, UserX, Clock, Trash2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -27,6 +27,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/components/ui/use-toast"
+import { ContactWithDetails, UserProfile } from "@/types/contact"
 
 // Make sure we're importing the named export
 import { supabase } from "@/utils/supabase/client"
@@ -36,14 +37,14 @@ type QualificationFilter = "all" | "qualified" | "in_progress" | "not_started" |
 
 export default function ContactsPage() {
   const router = useRouter()
-  const [myContacts, setMyContacts] = useState([])
-  const [selectedContact, setSelectedContact] = useState(null)
+  const [myContacts, setMyContacts] = useState<ContactWithDetails[]>([])
+  const [selectedContact, setSelectedContact] = useState<ContactWithDetails | null>(null)
   const [viewMode, setViewMode] = useState<ViewMode>("list")
   const [qualificationFilter, setQualificationFilter] = useState<QualificationFilter>("all")
   const [searchQuery, setSearchQuery] = useState("")
   const [isDeleting, setIsDeleting] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [userProfile, setUserProfile] = useState("")
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const { user } = useAuth()
   const { toast } = useToast()
 
@@ -53,7 +54,7 @@ export default function ContactsPage() {
 
       const { data: userProfile, error } = await supabase
       .from("profiles")
-      .select("id, email")
+      .select("*")
       .eq("id", user.id)
       .single()
 
@@ -148,7 +149,7 @@ export default function ContactsPage() {
       fetchUserProfile()
       fetchContacts()
     }
-  }, [user, userProfile.email]) // Depend on the entire user object instead of just user.id
+  }, [user, userProfile?.email]) // Depend on the entire user object instead of just user.id
 
   const filteredContacts = myContacts
     ? myContacts.filter((contact) => {
@@ -166,19 +167,19 @@ export default function ContactsPage() {
           const query = searchQuery.toLowerCase()
           return (
             contact.name.toLowerCase().includes(query) ||
-            contact.email.toLowerCase().includes(query) ||
-            contact.phone.includes(query)
+            (contact.email && contact.email.toLowerCase().includes(query)) ||
+            (contact.phone && contact.phone.includes(query))
           )
         }
 
         return true
       })
     : []
-
+/*
   const handleBatchAction = (action: "enable" | "disable" | "reset") => {
     // Here you would update the selected contacts' automation status
     console.log(`Batch ${action} automation`)
-  }
+  }*/
 
   return (
     <div className="flex h-[calc(100vh-0px)] flex-col">
@@ -223,12 +224,6 @@ export default function ContactsPage() {
           </div>
           <div className="flex items-center gap-2">
             <Button onClick={() => router.push("/contacts/new")}>Add Contact</Button>
-            <Button variant="outline" onClick={() => handleBatchAction("enable")}>
-              Enable Automation
-            </Button>
-            <Button variant="outline" onClick={() => handleBatchAction("disable")}>
-              Disable Automation
-            </Button>
           </div>
         </div>
         <div className="flex items-center gap-4">
@@ -293,14 +288,8 @@ export default function ContactsPage() {
               <Button onClick={() => router.push(`/contacts/${selectedContact?.id}/edit`)} disabled={!selectedContact}>
                 Edit Contact
               </Button>
-              <Button variant="outline" disabled={!selectedContact}>
-                <Mail className="mr-2 h-4 w-4" />
-                Send Email
-              </Button>
-              <Button variant="outline" disabled={!selectedContact}>
-                <Phone className="mr-2 h-4 w-4" />
-                Call Contact
-              </Button>
+
+
 
               {/* Standalone delete button that opens the dialog */}
               <Button

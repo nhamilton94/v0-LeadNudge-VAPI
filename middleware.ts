@@ -38,6 +38,12 @@ export async function middleware(request: NextRequest) {
       return NextResponse.next()
     }
 
+    // Explicitly skip middleware for Zillow webhook to ensure it processes correctly
+    if (request.nextUrl.pathname === "/api/zillowcontact") {
+      console.log("Skipping middleware for Zillow webhook endpoint")
+      return NextResponse.next()
+    }
+
     // Create the Supabase client for middleware
     const { supabase, response } = createMiddlewareSupabaseClient(request)
 
@@ -50,7 +56,7 @@ export async function middleware(request: NextRequest) {
     } = await supabase.auth.getSession()
 
     // Define public routes that don't require authentication
-    const publicRoutes = ["/auth", "/auth/verify", "/auth/verify-success"]
+    const publicRoutes = ["/auth", "/auth/verify", "/auth/verify-success", "/invite"]
     const path = request.nextUrl.pathname
     const isPublicRoute = publicRoutes.some((route) => path.startsWith(route))
 
@@ -63,6 +69,33 @@ export async function middleware(request: NextRequest) {
       const redirectUrl = new URL("/auth", request.url)
       redirectUrl.searchParams.set("next", path)
       return NextResponse.redirect(redirectUrl)
+    }
+
+    // Check if authenticated user is deactivated
+    if (session && !isPublicRoute && !isSigningOut) {
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('status')
+          .eq('id', session.user.id)
+          .single();
+
+        if (profile && profile.status === 'inactive') {
+          console.log("User is deactivated, logging out:", session.user.email);
+          
+          // Sign out the user
+          await supabase.auth.signOut();
+          
+          // Redirect to login with error message
+          const redirectUrl = new URL("/auth", request.url);
+          redirectUrl.searchParams.set("error", "account_deactivated");
+          redirectUrl.searchParams.set("message", "Your account has been deactivated. Please contact your administrator.");
+          return NextResponse.redirect(redirectUrl);
+        }
+      } catch (error) {
+        console.error("Error checking user status:", error);
+        // Continue on error to not block access
+      }
     }
 
     // Handle authenticated users on auth pages

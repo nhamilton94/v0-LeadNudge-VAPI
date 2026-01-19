@@ -8,12 +8,13 @@ import {
   Calendar,
   ChevronLeft,
   ChevronRight,
-  FileText,
   LayoutDashboard,
   MessageSquare,
   Users,
   LogOut,
   Settings,
+  Puzzle,
+  Building2,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -33,10 +34,15 @@ const sidebarItems = [
     icon: MessageSquare,
     href: "/messages",
   },
+  // {
+  //   title: "Tasks",
+  //   icon: FileText,
+  //   href: "/tasks",
+  // },
   {
-    title: "Tasks",
-    icon: FileText,
-    href: "/tasks",
+    title: "Properties",
+    icon: Building2,
+    href: "/properties",
   },
   {
     title: "Contacts",
@@ -50,13 +56,18 @@ const sidebarItems = [
   },
   {
     title: "Integrations",
-    icon: Settings,
+    icon: Puzzle,
     href: "/integrations",
   },
+  // {
+  //   title: "Reports",
+  //   icon: LayoutDashboard,
+  //   href: "/reports",
+  // },
   {
-    title: "Reports",
-    icon: LayoutDashboard,
-    href: "/reports",
+    title: "Settings",
+    icon: Settings,
+    href: "/settings",
   },
 ]
 
@@ -81,6 +92,9 @@ export function Sidebar() {
     const newState = !isCollapsed
     setIsCollapsed(newState)
     localStorage.setItem("sidebarCollapsed", String(newState))
+
+    // Dispatch custom event for same-window communication
+    window.dispatchEvent(new CustomEvent("sidebarToggle", { detail: { collapsed: newState } }))
   }
 
   // Add a function to handle sign out
@@ -120,7 +134,7 @@ export function Sidebar() {
     <TooltipProvider delayDuration={0}>
       <div
         className={cn(
-          "relative flex h-screen flex-col border-r bg-white transition-all duration-300",
+          "fixed left-0 top-0 z-40 flex h-screen flex-col border-r bg-white transition-all duration-300",
           isCollapsed ? "w-16" : "w-64",
         )}
       >

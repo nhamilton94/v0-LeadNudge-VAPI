@@ -40,9 +40,6 @@ export function OAuthButtons({
   return (
     <div className="flex flex-col gap-2">
       <GoogleSignIn />
-      <Button variant="outline" type="button" disabled={isLoading} onClick={handleGithubSignIn} className="w-full">
-        {isLoading ? "Loading..." : `Continue with GitHub`}
-      </Button>
     </div>
   )
 }
