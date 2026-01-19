@@ -35,13 +35,9 @@ interface APIErrorResponse {
   }
 }
 
-// Default test phone number for reference
-const DEFAULT_TEST_PHONE_NUMBER = "+19089433888"//"+16307477672"//"+16099635631"
-
 export function QualificationControls({ contact, userEmail }: QualificationControlsProps) {
   const [isAutomated, setIsAutomated] = useState(contact.qualification_status?.automation_enabled || false)
   const [isLoading, setIsLoading] = useState(false)
-  const [useTestNumber, setUseTestNumber] = useState(false)
   const [conversationStatus, setConversationStatus] = useState<'not_started' | 'active' | 'paused' | 'ended'>(
     contact.conversations?.[0]?.conversation_status || 'not_started'
   )
@@ -277,7 +273,6 @@ export function QualificationControls({ contact, userEmail }: QualificationContr
         body: JSON.stringify({
           contactId: contact.id,
           phoneNumber: contact.phone,
-          useTestNumber: useTestNumber,
           firstName: contact.name,
           host_email: userEmail,
           address: contact.interested_property_details?.address,
@@ -294,8 +289,8 @@ export function QualificationControls({ contact, userEmail }: QualificationContr
       }
   
       toast({
-        title: useTestNumber ? "Test Qualification Started" : "Qualification Started",
-        description: `Initiating call to ${useTestNumber ? "test number" : contact.name} at ${useTestNumber ? DEFAULT_TEST_PHONE_NUMBER : contact.phone}`,
+        title: "Qualification Started",
+        description: `Initiating call to ${contact.name} at ${contact.phone}`,
       })
 
       console.log("Call initiated:", data)
@@ -457,7 +452,7 @@ export function QualificationControls({ contact, userEmail }: QualificationContr
             ) : (
               <>
                 <Phone className="mr-2 h-4 w-4" />
-                {useTestNumber ? "Start Test Call" : "Start Phone Call"}
+                Start Phone Call
               </>
             )}
           </Button>
