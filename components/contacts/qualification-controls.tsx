@@ -21,6 +21,7 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { ContactWithDetails } from "@/types/contact"
+import { getContactDisplayName } from "@/utils/contact-name"
 
 interface QualificationControlsProps {
   contact: ContactWithDetails
@@ -144,8 +145,8 @@ export function QualificationControls({ contact, userEmail }: QualificationContr
       toast({
         title: newAutomationState ? "Automation Enabled" : "Automation Disabled",
         description: newAutomationState 
-          ? `Automation enabled for ${contact.name}. You can now start AI qualification.`
-          : `Automation disabled for ${contact.name}. Active conversations have been paused.`,
+          ? `Automation enabled for ${getContactDisplayName(contact)}. You can now start AI qualification.`
+          : `Automation disabled for ${getContactDisplayName(contact)}. Active conversations have been paused.`,
       })
 
     } catch (error) {
@@ -181,7 +182,7 @@ export function QualificationControls({ contact, userEmail }: QualificationContr
         setIsAutomated(true)
         toast({
           title: "AI Qualification Started",
-          description: `Started automated conversation with ${contact.name}`,
+          description: `Started automated conversation with ${getContactDisplayName(contact)}`,
         })
 
       } else if (currentStatus === 'active') {
@@ -202,7 +203,7 @@ export function QualificationControls({ contact, userEmail }: QualificationContr
         setIsAutomated(false)
         toast({
           title: "AI Qualification Paused",
-          description: `Paused automated conversation with ${contact.name}`,
+          description: `Paused automated conversation with ${getContactDisplayName(contact)}`,
         })
 
       } else if (currentStatus === 'paused') {
@@ -220,7 +221,7 @@ export function QualificationControls({ contact, userEmail }: QualificationContr
         setIsAutomated(true)
         toast({
           title: "AI Qualification Resumed",
-          description: `Resumed automated conversation with ${contact.name}`,
+          description: `Resumed automated conversation with ${getContactDisplayName(contact)}`,
         })
 
       } else if (currentStatus === 'ended') {
@@ -273,7 +274,7 @@ export function QualificationControls({ contact, userEmail }: QualificationContr
         body: JSON.stringify({
           contactId: contact.id,
           phoneNumber: contact.phone,
-          firstName: contact.name,
+          firstName: getContactDisplayName(contact),
           host_email: userEmail,
           address: contact.interested_property_details?.address,
           attendee_email: contact.email
@@ -290,7 +291,7 @@ export function QualificationControls({ contact, userEmail }: QualificationContr
   
       toast({
         title: "Qualification Started",
-        description: `Initiating call to ${contact.name} at ${contact.phone}`,
+        description: `Initiating call to ${getContactDisplayName(contact)} at ${contact.phone}`,
       })
 
       console.log("Call initiated:", data)

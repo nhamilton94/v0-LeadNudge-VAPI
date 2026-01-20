@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase/client'
 import { Database, Message } from '@/lib/database.types'
+import { getContactDisplayName } from '@/utils/contact-name'
 
 // New type for conversation with real-time data from base tables
 export interface ConversationWithDetails {
@@ -109,7 +110,8 @@ export async function getConversations(params: ConversationListParams): Promise<
     // Add search filter if provided - search in conversation phone and joined contact fields
     if (search.trim()) {
       const searchTerm = `%${search.trim()}%`
-      query = query.or(`phone_number.ilike.${searchTerm},contacts.name.ilike.${searchTerm},contacts.email.ilike.${searchTerm}`)
+      // Note: Search still uses contacts.name for backward compatibility, but display will use smart logic
+      query = query.or(`phone_number.ilike.${searchTerm},contacts.name.ilike.${searchTerm},contacts.first_name.ilike.${searchTerm},contacts.last_name.ilike.${searchTerm},contacts.email.ilike.${searchTerm}`)
     }
 
     // Add pagination
@@ -205,8 +207,8 @@ export async function getConversations(params: ConversationListParams): Promise<
       twilio_conversation_sid: conv.twilio_conversation_sid,
       metadata: conv.metadata,
       
-      // Contact fields from joined data
-      contact_name: (conv.contacts as any)?.name || null,
+      // Contact fields from joined data (using smart display logic)
+      contact_name: getContactDisplayName((conv.contacts as any) || {}),
       contact_email: (conv.contacts as any)?.email || null,
       contact_lead_status: (conv.contacts as any)?.lead_status || null,
       contact_lead_source: (conv.contacts as any)?.lead_source || null,
@@ -384,7 +386,7 @@ export async function getConversationById(conversationId: string, userId: string
       metadata: conversationData.metadata,
       
       // Contact fields from joined data
-      contact_name: (conversationData.contacts as any)?.name || null,
+      contact_name: getContactDisplayName((conversationData.contacts as any) || {}),
       contact_email: (conversationData.contacts as any)?.email || null,
       contact_lead_status: (conversationData.contacts as any)?.lead_status || null,
       contact_lead_source: (conversationData.contacts as any)?.lead_source || null,

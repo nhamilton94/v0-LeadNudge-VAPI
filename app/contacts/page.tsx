@@ -15,7 +15,6 @@ import { ContactMeetings } from "@/components/contacts/contact-meetings"
 import { ContactActivity } from "@/components/contacts/contact-activity"
 import { ContactQualification } from "@/components/contacts/contact-qualification"
 import { QualificationControls } from "@/components/contacts/qualification-controls"
-import { QualificationStats } from "@/components/contacts/qualification-stats"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,6 +27,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/components/ui/use-toast"
 import { ContactWithDetails, UserProfile } from "@/types/contact"
+import { getContactDisplayName } from "@/utils/contact-name"
 
 // Make sure we're importing the named export
 import { supabase } from "@/utils/supabase/client"
@@ -166,7 +166,7 @@ export default function ContactsPage() {
         if (searchQuery) {
           const query = searchQuery.toLowerCase()
           return (
-            contact.name.toLowerCase().includes(query) ||
+            getContactDisplayName(contact).toLowerCase().includes(query) ||
             (contact.email && contact.email.toLowerCase().includes(query)) ||
             (contact.phone && contact.phone.includes(query))
           )
@@ -267,7 +267,7 @@ export default function ContactsPage() {
           <div className="flex flex-col gap-6 p-6">
             {selectedContact ? (
               <div className="flex items-center gap-4">
-                <h1 className="text-2xl font-semibold">{selectedContact.name}</h1>
+                <h1 className="text-2xl font-semibold">{getContactDisplayName(selectedContact)}</h1>
                 {selectedContact.qualification_status?.qualification_status === "qualified" && (
                   <span className="inline-flex items-center rounded-full bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
                     Qualified
@@ -308,7 +308,7 @@ export default function ContactsPage() {
                     <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                     <AlertDialogDescription>
                       This action cannot be undone. This will permanently delete the contact
-                      {selectedContact ? ` "${selectedContact.name}"` : ""} and remove all associated data.
+                      {selectedContact ? ` "${getContactDisplayName(selectedContact)}"` : ""} and remove all associated data.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -338,7 +338,6 @@ export default function ContactsPage() {
                 <TabsContent value="qualification" className="mt-6">
                   <div className="space-y-6">
                     <QualificationControls contact={selectedContact} userEmail={userProfile?.email || ''} />
-                    <QualificationStats contact={selectedContact} />
                     <ContactQualification contact={selectedContact} />
                   </div>
                 </TabsContent>

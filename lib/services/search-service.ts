@@ -1,4 +1,5 @@
 import { SupabaseClient } from '@supabase/supabase-js'
+import { getContactDisplayName } from '@/utils/contact-name'
 
 export interface SearchResult {
   type: 'conversation' | 'message'
@@ -53,11 +54,13 @@ export async function searchConversationsAndMessages({
         phone_number,
         contacts (
           name,
+          first_name,
+          last_name,
           email
         )
       `)
       .eq('user_id', userId)
-      .or(`contacts.name.ilike.${searchTerm},contacts.email.ilike.${searchTerm},phone_number.ilike.${searchTerm}`)
+      .or(`contacts.name.ilike.${searchTerm},contacts.first_name.ilike.${searchTerm},contacts.last_name.ilike.${searchTerm},contacts.email.ilike.${searchTerm},phone_number.ilike.${searchTerm}`)
       .limit(Math.min(limit, 25)) // Limit conversation results
 
     if (convError) {
@@ -91,10 +94,10 @@ export async function searchConversationsAndMessages({
         results.push({
           type: 'conversation',
           conversation_id: conv.id!,
-          conversation_name: (conv.contacts as any)?.name || 'Unknown Contact',
+          conversation_name: getContactDisplayName((conv.contacts as any) || {}),
           contact_email: (conv.contacts as any)?.email,
           phone_number: conv.phone_number,
-          match_snippet: (conv.contacts as any)?.name || '',
+          match_snippet: getContactDisplayName((conv.contacts as any) || {}),
           match_type: 'conversation_name'
         })
       })
@@ -113,6 +116,8 @@ export async function searchConversationsAndMessages({
           phone_number,
           contacts (
             name,
+            first_name,
+            last_name,
             email
           )
         `)
@@ -130,7 +135,7 @@ export async function searchConversationsAndMessages({
         results.push({
           type: 'message',
           conversation_id: msg.conversation_id,
-          conversation_name: (conversation?.contacts as any)?.name || 'Unknown Contact',
+          conversation_name: getContactDisplayName((conversation?.contacts as any) || {}),
           contact_email: (conversation?.contacts as any)?.email,
           phone_number: conversation?.phone_number,
           message_id: msg.id,

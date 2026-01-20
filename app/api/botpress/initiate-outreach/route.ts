@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServiceClient } from "@/utils/supabase/service"
 import { Client } from "@botpress/client"
+import { getContactDisplayName } from "@/utils/contact-name"
 
 interface InitiateOutreachRequest {
   contactId: string
@@ -33,6 +34,31 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       )
     }
+
+    // Get the user profile who owns this contact
+    const { data: userProfile, error: userProfileError } = await supabase
+      .from("profiles")
+      .select("id, email, first_name, last_name, full_name")
+      .eq("id", contact.assigned_to)
+      .single()
+
+    if (userProfileError || !userProfile) {
+      console.error("Error fetching user profile:", userProfileError)
+      return NextResponse.json(
+        { error: "User profile not found" },
+        { status: 404 }
+      )
+    }
+
+    // Validate user has email for calendar integration
+    if (!userProfile.email) {
+      return NextResponse.json(
+        { error: "User profile missing email for calendar integration" },
+        { status: 400 }
+      )
+    }
+
+    console.log("Found user profile:", { id: userProfile.id, email: userProfile.email })
 
     // Check if automation is enabled for this contact
     const { data: qualificationStatus, error: qualError } = await supabase
@@ -192,7 +218,7 @@ export async function POST(request: NextRequest) {
         userId: user.id 
       })
 
-      // 4. Set conversation state with contact context
+      // 4. Set conversation state with contact context including host email
       await client.setState({
         type: "conversation",
         id: botpressConversation.id,
@@ -200,15 +226,16 @@ export async function POST(request: NextRequest) {
         payload: {
           firstName: contact.first_name,
           lastName: contact.last_name,
-          fullName: contact.name,
+          fullName: getContactDisplayName(contact),
           phone: contact.phone,
           email: contact.email,
-          contactId: contact.id
+          contactId: contact.id,
+          hostEmail: userProfile.email
         }
       })
 
       // 5. Send the first message as the bot
-      const initialMessage = `Hi, is this ${contact.first_name || contact.name}? I'm Alex, a virtual assistant for 149 Pennsylvania Avenue. I saw you were interested in the property. Would you like to schedule a tour?`
+      const initialMessage = `Hi, is this ${contact.first_name || getContactDisplayName(contact)}? I'm Alex, a virtual assistant for 149 Pennsylvania Avenue. I saw you were interested in the property. Would you like to schedule a tour?`
       
       await client.createMessage({ 
         conversationId: botpressConversation.id, 
