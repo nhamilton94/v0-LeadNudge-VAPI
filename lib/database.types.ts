@@ -234,10 +234,15 @@ export type Database = {
       contacts: {
         Row: {
           assigned_to: string | null
+          bathrooms_sought: number | null
+          bedrooms_sought: number | null
           created_at: string
           created_by: string
+          credit_score_max: number | null
+          credit_score_min: number | null
           email: string | null
           first_name: string | null
+          has_pets: boolean | null
           id: string
           image_url: string | null
           industry: string | null
@@ -245,19 +250,31 @@ export type Database = {
           last_name: string | null
           lead_source: Database["public"]["Enums"]["lead_source"] | null
           lead_status: Database["public"]["Enums"]["lead_status"]
+          lease_length_preference: number | null
           linkedin: string | null
+          move_in_date: string | null
           name: string
+          num_occupants: number | null
           organization_id: string | null
+          pet_details: Json | null
           phone: string | null
           title: string | null
           updated_at: string
+          yearly_income: number | null
+          zillow_global_listing_id: string | null
+          zillow_lead_type: string | null
         }
         Insert: {
           assigned_to?: string | null
+          bathrooms_sought?: number | null
+          bedrooms_sought?: number | null
           created_at?: string
           created_by: string
+          credit_score_max?: number | null
+          credit_score_min?: number | null
           email?: string | null
           first_name?: string | null
+          has_pets?: boolean | null
           id?: string
           image_url?: string | null
           industry?: string | null
@@ -265,19 +282,31 @@ export type Database = {
           last_name?: string | null
           lead_source?: Database["public"]["Enums"]["lead_source"] | null
           lead_status?: Database["public"]["Enums"]["lead_status"]
+          lease_length_preference?: number | null
           linkedin?: string | null
+          move_in_date?: string | null
           name: string
+          num_occupants?: number | null
           organization_id?: string | null
+          pet_details?: Json | null
           phone?: string | null
           title?: string | null
           updated_at?: string
+          yearly_income?: number | null
+          zillow_global_listing_id?: string | null
+          zillow_lead_type?: string | null
         }
         Update: {
           assigned_to?: string | null
+          bathrooms_sought?: number | null
+          bedrooms_sought?: number | null
           created_at?: string
           created_by?: string
+          credit_score_max?: number | null
+          credit_score_min?: number | null
           email?: string | null
           first_name?: string | null
+          has_pets?: boolean | null
           id?: string
           image_url?: string | null
           industry?: string | null
@@ -285,12 +314,19 @@ export type Database = {
           last_name?: string | null
           lead_source?: Database["public"]["Enums"]["lead_source"] | null
           lead_status?: Database["public"]["Enums"]["lead_status"]
+          lease_length_preference?: number | null
           linkedin?: string | null
+          move_in_date?: string | null
           name?: string
+          num_occupants?: number | null
           organization_id?: string | null
+          pet_details?: Json | null
           phone?: string | null
           title?: string | null
           updated_at?: string
+          yearly_income?: number | null
+          zillow_global_listing_id?: string | null
+          zillow_lead_type?: string | null
         }
         Relationships: [
           {
@@ -329,7 +365,9 @@ export type Database = {
           botpress_conversation_id: string | null
           botpress_user_id: string | null
           contact_id: string | null
-          conversation_status: Database["public"]["Enums"]["conversation_status"] | null
+          conversation_status:
+            | Database["public"]["Enums"]["conversation_status"]
+            | null
           created_at: string
           ended_at: string | null
           id: string
@@ -347,7 +385,9 @@ export type Database = {
           botpress_conversation_id?: string | null
           botpress_user_id?: string | null
           contact_id?: string | null
-          conversation_status?: Database["public"]["Enums"]["conversation_status"] | null
+          conversation_status?:
+            | Database["public"]["Enums"]["conversation_status"]
+            | null
           created_at?: string
           ended_at?: string | null
           id?: string
@@ -365,7 +405,9 @@ export type Database = {
           botpress_conversation_id?: string | null
           botpress_user_id?: string | null
           contact_id?: string | null
-          conversation_status?: Database["public"]["Enums"]["conversation_status"] | null
+          conversation_status?:
+            | Database["public"]["Enums"]["conversation_status"]
+            | null
           created_at?: string
           ended_at?: string | null
           id?: string
@@ -900,53 +942,68 @@ export type Database = {
       properties: {
         Row: {
           address: string
+          available_date: string | null
           bathrooms: number | null
           bedrooms: number | null
           city: string
           created_at: string
           created_by: string
           id: string
+          lease_length_months: number | null
           organization_id: string | null
           price: number | null
           property_type: Database["public"]["Enums"]["property_type"]
           square_feet: number | null
           state: string
           status: Database["public"]["Enums"]["property_status"]
+          unit: string | null
           updated_at: string
+          zillow_global_listing_id: string | null
+          zillow_listing_id: string | null
           zip: string
         }
         Insert: {
           address: string
+          available_date?: string | null
           bathrooms?: number | null
           bedrooms?: number | null
           city: string
           created_at?: string
           created_by: string
           id?: string
+          lease_length_months?: number | null
           organization_id?: string | null
           price?: number | null
           property_type: Database["public"]["Enums"]["property_type"]
           square_feet?: number | null
           state: string
           status?: Database["public"]["Enums"]["property_status"]
+          unit?: string | null
           updated_at?: string
+          zillow_global_listing_id?: string | null
+          zillow_listing_id?: string | null
           zip: string
         }
         Update: {
           address?: string
+          available_date?: string | null
           bathrooms?: number | null
           bedrooms?: number | null
           city?: string
           created_at?: string
           created_by?: string
           id?: string
+          lease_length_months?: number | null
           organization_id?: string | null
           price?: number | null
           property_type?: Database["public"]["Enums"]["property_type"]
           square_feet?: number | null
           state?: string
           status?: Database["public"]["Enums"]["property_status"]
+          unit?: string | null
           updated_at?: string
+          zillow_global_listing_id?: string | null
+          zillow_listing_id?: string | null
           zip?: string
         }
         Relationships: [
@@ -1335,6 +1392,7 @@ export type Database = {
       expire_old_invitations: { Args: never; Returns: undefined }
       get_contacts_with_details: { Args: { user_id: string }; Returns: Json }
       get_user_organization: { Args: { p_user_id: string }; Returns: string }
+      get_user_organization_id: { Args: never; Returns: string }
       get_user_properties: {
         Args: { p_user_id: string }
         Returns: {
@@ -1537,11 +1595,6 @@ export type CompositeTypes<
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
 
-// Export commonly used types
-export type ConversationSummary = Database['public']['Views']['conversation_summaries']['Row']
-export type Message = Database['public']['Tables']['messages']['Row']
-export type ZillowIntegrationStatus = Database['public']['Enums']['zillow_integration_status']
-
 export const Constants = {
   public: {
     Enums: {
@@ -1556,6 +1609,7 @@ export const Constants = {
       ],
       attendee_role: ["organizer", "required", "optional"],
       attendee_type: ["user", "contact", "external"],
+      conversation_status: ["not_started", "active", "paused", "ended"],
       event_status: ["scheduled", "cancelled", "completed"],
       event_type: ["tour", "meeting", "call", "showing", "appointment"],
       interest_level: ["high", "medium", "low"],

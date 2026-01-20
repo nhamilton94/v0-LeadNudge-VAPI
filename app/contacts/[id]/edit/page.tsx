@@ -12,11 +12,15 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Textarea } from "@/components/ui/textarea"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { AvatarUpload } from "@/components/contacts/avatar-upload"
 import { useToast } from "@/components/ui/use-toast"
 
 // Make sure we're importing the named export
 import { supabase } from "@/utils/supabase/client-browser"
+import { parseLegacyName, combineNames } from "@/utils/contact-name"
 
 // Updated to match database values exactly (lowercase)
 const leadSources = [
@@ -43,8 +47,19 @@ const leadStatuses = [
   "lost",
 ] as const
 
+// Lease length options (in months)
+const leaseLengthOptions = [
+  { value: 3, label: "3 months" },
+  { value: 6, label: "6 months" },
+  { value: 12, label: "12 months" },
+  { value: 18, label: "18 months" },
+  { value: 24, label: "24 months" },
+  { value: 0, label: "Month-to-month" },
+] as const
+
 type FormValues = {
-  name: string
+  firstName: string
+  lastName: string
   title: string
   email: string
   phone: string
@@ -52,11 +67,25 @@ type FormValues = {
   industry: string
   leadSource: (typeof leadSources)[number]
   leadStatus: (typeof leadStatuses)[number]
+  // Rental preference fields
+  moveInDate?: string
+  leaseLengthPreference?: number
+  bedroomsSought?: number
+  bathroomsSought?: number
+  numOccupants?: number
+  // Financial fields
+  creditScoreMin?: number
+  creditScoreMax?: number
+  yearlyIncome?: number
+  // Pet fields
+  hasPets?: boolean
+  petDetails?: string
 }
 
 // Updated default values to match database format
 const defaultContactValues: FormValues = {
-  name: "",
+  firstName: "",
+  lastName: "",
   title: "",
   email: "",
   phone: "",
@@ -64,6 +93,19 @@ const defaultContactValues: FormValues = {
   industry: "",
   leadSource: "referral", // lowercase
   leadStatus: "new lead", // lowercase with space
+  // Rental preferences
+  moveInDate: undefined,
+  leaseLengthPreference: undefined,
+  bedroomsSought: undefined,
+  bathroomsSought: undefined,
+  numOccupants: undefined,
+  // Financial information
+  creditScoreMin: undefined,
+  creditScoreMax: undefined,
+  yearlyIncome: undefined,
+  // Pet information
+  hasPets: false,
+  petDetails: undefined,
 }
 
 export default function EditContactPage() {
@@ -111,7 +153,11 @@ export default function EditContactPage() {
 
         const { data, error } = await supabase
           .from("contacts")
-          .select("name, title, email, phone, linkedin, industry, lead_source, lead_status")
+          .select(`
+            name, first_name, last_name, title, email, phone, linkedin, industry, lead_source, lead_status,
+            move_in_date, lease_length_preference, bedrooms_sought, bathrooms_sought, num_occupants,
+            credit_score_min, credit_score_max, yearly_income, has_pets, pet_details
+          `)
           .eq("id", contactId)
           .single()
 
@@ -126,9 +172,21 @@ export default function EditContactPage() {
         }
 
         if (data) {
+          // Migration logic: Use first_name/last_name if available, else parse legacy name
+          let firstName = data.first_name || ""
+          let lastName = data.last_name || ""
+          
+          // If no first/last names but we have a legacy name, parse it
+          if (!firstName && !lastName && data.name) {
+            const parsed = parseLegacyName(data.name)
+            firstName = parsed.firstName
+            lastName = parsed.lastName
+          }
+
           // Create a new object with the data
           const formData = {
-            name: data.name || "",
+            firstName,
+            lastName,
             title: data.title || "",
             email: data.email || "",
             phone: data.phone || "",
@@ -136,6 +194,19 @@ export default function EditContactPage() {
             industry: data.industry || "",
             leadSource: (data.lead_source as any) || "referral",
             leadStatus: (data.lead_status as any) || "new lead",
+            // Rental preferences
+            moveInDate: data.move_in_date || undefined,
+            leaseLengthPreference: data.lease_length_preference || undefined,
+            bedroomsSought: data.bedrooms_sought || undefined,
+            bathroomsSought: data.bathrooms_sought || undefined,
+            numOccupants: data.num_occupants || undefined,
+            // Financial information
+            creditScoreMin: data.credit_score_min || undefined,
+            creditScoreMax: data.credit_score_max || undefined,
+            yearlyIncome: data.yearly_income || undefined,
+            // Pet information
+            hasPets: data.has_pets || false,
+            petDetails: data.pet_details || undefined,
           }
 
           // Set form values
@@ -205,7 +276,7 @@ export default function EditContactPage() {
   }
 
   // Handle input changes
-  const handleChange = (field: keyof FormValues, value: string) => {
+  const handleChange = (field: keyof FormValues, value: string | number | boolean | undefined) => {
     setFormValues((prev) => ({
       ...prev,
       [field]: value,
@@ -216,8 +287,12 @@ export default function EditContactPage() {
   function validateForm(values: FormValues) {
     const newErrors: Partial<Record<keyof FormValues, string>> = {}
 
-    if (!values.name || values.name.length < 2) {
-      newErrors.name = "Name must be at least 2 characters."
+    if (!values.firstName || values.firstName.length < 1) {
+      newErrors.firstName = "First name is required."
+    }
+
+    if (!values.lastName || values.lastName.length < 1) {
+      newErrors.lastName = "Last name is required."
     }
 
     if (!values.title || values.title.length < 2) {
@@ -238,6 +313,41 @@ export default function EditContactPage() {
 
     if (!values.industry || values.industry.length < 2) {
       newErrors.industry = "Industry must be at least 2 characters."
+    }
+
+    // Validate credit score range
+    if (values.creditScoreMin !== undefined && (values.creditScoreMin < 300 || values.creditScoreMin > 850)) {
+      newErrors.creditScoreMin = "Credit score must be between 300 and 850."
+    }
+
+    if (values.creditScoreMax !== undefined && (values.creditScoreMax < 300 || values.creditScoreMax > 850)) {
+      newErrors.creditScoreMax = "Credit score must be between 300 and 850."
+    }
+
+    if (values.creditScoreMin !== undefined && values.creditScoreMax !== undefined && values.creditScoreMin > values.creditScoreMax) {
+      newErrors.creditScoreMax = "Credit score maximum must be greater than or equal to minimum."
+    }
+
+    // Validate numeric fields
+    if (values.yearlyIncome !== undefined && values.yearlyIncome < 0) {
+      newErrors.yearlyIncome = "Annual income must be a positive number."
+    }
+
+    if (values.numOccupants !== undefined && values.numOccupants < 1) {
+      newErrors.numOccupants = "Number of occupants must be at least 1."
+    }
+
+    if (values.bedroomsSought !== undefined && values.bedroomsSought < 0) {
+      newErrors.bedroomsSought = "Bedrooms sought must be 0 or more."
+    }
+
+    if (values.bathroomsSought !== undefined && values.bathroomsSought < 0) {
+      newErrors.bathroomsSought = "Bathrooms sought must be 0 or more."
+    }
+
+    // Validate pet details required when has pets
+    if (values.hasPets && (!values.petDetails || !values.petDetails.trim())) {
+      newErrors.petDetails = "Pet details are required when pets are present."
     }
 
     return newErrors
@@ -275,7 +385,9 @@ export default function EditContactPage() {
       const { error } = await supabase
         .from("contacts")
         .update({
-          name: formValues.name,
+          first_name: formValues.firstName,
+          last_name: formValues.lastName,
+          name: combineNames(formValues.firstName, formValues.lastName),
           title: formValues.title,
           email: formValues.email,
           phone: formValues.phone,
@@ -283,6 +395,19 @@ export default function EditContactPage() {
           industry: formValues.industry,
           lead_source: formValues.leadSource,
           lead_status: formValues.leadStatus,
+          // Rental preferences
+          move_in_date: formValues.moveInDate || null,
+          lease_length_preference: formValues.leaseLengthPreference || null,
+          bedrooms_sought: formValues.bedroomsSought || null,
+          bathrooms_sought: formValues.bathroomsSought || null,
+          num_occupants: formValues.numOccupants || null,
+          // Financial information
+          credit_score_min: formValues.creditScoreMin || null,
+          credit_score_max: formValues.creditScoreMax || null,
+          yearly_income: formValues.yearlyIncome || null,
+          // Pet information
+          has_pets: formValues.hasPets || false,
+          pet_details: formValues.petDetails || null,
           updated_at: new Date().toISOString(),
         })
         .eq("id", contactId)
@@ -355,15 +480,28 @@ export default function EditContactPage() {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
-              <Input
-                id="name"
-                value={formValues.name}
-                onChange={(e) => handleChange("name", e.target.value)}
-                placeholder="Enter full name"
-              />
-              {errors.name && <p className="text-sm text-red-500">{errors.name}</p>}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="firstName">First Name</Label>
+                <Input
+                  id="firstName"
+                  value={formValues.firstName}
+                  onChange={(e) => handleChange("firstName", e.target.value)}
+                  placeholder="Enter first name"
+                />
+                {errors.firstName && <p className="text-sm text-red-500">{errors.firstName}</p>}
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="lastName">Last Name</Label>
+                <Input
+                  id="lastName"
+                  value={formValues.lastName}
+                  onChange={(e) => handleChange("lastName", e.target.value)}
+                  placeholder="Enter last name"
+                />
+                {errors.lastName && <p className="text-sm text-red-500">{errors.lastName}</p>}
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -468,6 +606,177 @@ export default function EditContactPage() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Rental Preferences Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Rental Preferences</CardTitle>
+                <CardDescription>Information about rental requirements and preferences</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="moveInDate">Move-in Date</Label>
+                    <Input
+                      id="moveInDate"
+                      type="date"
+                      value={formValues.moveInDate || ""}
+                      onChange={(e) => handleChange("moveInDate", e.target.value || undefined)}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="leaseLengthPreference">Lease Length Preference</Label>
+                    <Select 
+                      value={formValues.leaseLengthPreference?.toString() || ""} 
+                      onValueChange={(value) => handleChange("leaseLengthPreference", value ? Number(value) : undefined)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select lease length" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {leaseLengthOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value.toString()}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="bedroomsSought">Bedrooms Sought</Label>
+                    <Input
+                      id="bedroomsSought"
+                      type="number"
+                      min="0"
+                      value={formValues.bedroomsSought?.toString() || ""}
+                      onChange={(e) => handleChange("bedroomsSought", e.target.value ? Number(e.target.value) : undefined)}
+                      placeholder="0"
+                    />
+                    {errors.bedroomsSought && <p className="text-sm text-red-500">{errors.bedroomsSought}</p>}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="bathroomsSought">Bathrooms Sought</Label>
+                    <Input
+                      id="bathroomsSought"
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      value={formValues.bathroomsSought?.toString() || ""}
+                      onChange={(e) => handleChange("bathroomsSought", e.target.value ? Number(e.target.value) : undefined)}
+                      placeholder="0"
+                    />
+                    {errors.bathroomsSought && <p className="text-sm text-red-500">{errors.bathroomsSought}</p>}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="numOccupants">Number of Occupants</Label>
+                    <Input
+                      id="numOccupants"
+                      type="number"
+                      min="1"
+                      value={formValues.numOccupants?.toString() || ""}
+                      onChange={(e) => handleChange("numOccupants", e.target.value ? Number(e.target.value) : undefined)}
+                      placeholder="1"
+                    />
+                    {errors.numOccupants && <p className="text-sm text-red-500">{errors.numOccupants}</p>}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Financial Information Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Financial Information</CardTitle>
+                <CardDescription>Credit and income information for qualification</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="creditScoreMin">Credit Score (Min)</Label>
+                    <Input
+                      id="creditScoreMin"
+                      type="number"
+                      min="300"
+                      max="850"
+                      value={formValues.creditScoreMin?.toString() || ""}
+                      onChange={(e) => handleChange("creditScoreMin", e.target.value ? Number(e.target.value) : undefined)}
+                      placeholder="300"
+                    />
+                    <p className="text-xs text-muted-foreground">Range: 300-850</p>
+                    {errors.creditScoreMin && <p className="text-sm text-red-500">{errors.creditScoreMin}</p>}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="creditScoreMax">Credit Score (Max)</Label>
+                    <Input
+                      id="creditScoreMax"
+                      type="number"
+                      min="300"
+                      max="850"
+                      value={formValues.creditScoreMax?.toString() || ""}
+                      onChange={(e) => handleChange("creditScoreMax", e.target.value ? Number(e.target.value) : undefined)}
+                      placeholder="850"
+                    />
+                    <p className="text-xs text-muted-foreground">Range: 300-850</p>
+                    {errors.creditScoreMax && <p className="text-sm text-red-500">{errors.creditScoreMax}</p>}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="yearlyIncome">Annual Income</Label>
+                  <Input
+                    id="yearlyIncome"
+                    type="number"
+                    min="0"
+                    value={formValues.yearlyIncome?.toString() || ""}
+                    onChange={(e) => handleChange("yearlyIncome", e.target.value ? Number(e.target.value) : undefined)}
+                    placeholder="0"
+                  />
+                  <p className="text-xs text-muted-foreground">Annual gross income in USD</p>
+                  {errors.yearlyIncome && <p className="text-sm text-red-500">{errors.yearlyIncome}</p>}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Pet Information Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Pet Information</CardTitle>
+                <CardDescription>Details about pets if applicable</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="hasPets"
+                    checked={formValues.hasPets || false}
+                    onCheckedChange={(checked) => handleChange("hasPets", checked as boolean)}
+                  />
+                  <Label htmlFor="hasPets">Has Pets</Label>
+                </div>
+
+                {formValues.hasPets && (
+                  <div className="space-y-2">
+                    <Label htmlFor="petDetails">Pet Details</Label>
+                    <Textarea
+                      id="petDetails"
+                      value={formValues.petDetails || ""}
+                      onChange={(e) => handleChange("petDetails", e.target.value || undefined)}
+                      placeholder="Describe pets (type, breed, size, etc.)"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Include type of pets, breeds, sizes, and any relevant information
+                    </p>
+                    {errors.petDetails && <p className="text-sm text-red-500">{errors.petDetails}</p>}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
             <div className="flex justify-end gap-4">
               <Button variant="outline" onClick={() => router.back()} disabled={isSubmitting}>

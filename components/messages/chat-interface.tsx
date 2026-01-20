@@ -20,6 +20,7 @@ import { getContactByConversationId } from "@/lib/services/contacts-service"
 import { ContactWithDetails } from "@/types/contact"
 import { useAuth } from "@/components/auth/supabase-auth-provider"
 import { supabase } from "@/utils/supabase/client"
+import { getContactDisplayName, getContactInitials } from "@/utils/contact-name"
 
 interface ChatInterfaceProps {
   conversationId: string
@@ -519,15 +520,15 @@ export function ChatInterface({ conversationId, conversation, targetMessageId, o
                     <div className="flex items-center gap-4 pb-6 border-b">
                       <Avatar className="h-20 w-20">
                         <AvatarImage 
-                          src={contactDetails.image_url || `https://api.dicebear.com/7.x/initials/svg?seed=${contactDetails.name}`} 
-                          alt={contactDetails.name || 'Contact'} 
+                          src={contactDetails.image_url || `https://api.dicebear.com/7.x/initials/svg?seed=${getContactDisplayName(contactDetails)}`} 
+                          alt={getContactDisplayName(contactDetails)} 
                         />
                         <AvatarFallback className="text-xl">
-                          {getInitials(contactDetails.name)}
+                          {getContactInitials(contactDetails)}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1">
-                        <h3 className="font-semibold text-xl mb-2">{contactDetails.name}</h3>
+                        <h3 className="font-semibold text-xl mb-2">{getContactDisplayName(contactDetails)}</h3>
                         {contactDetails.title && (
                           <p className="text-muted-foreground text-base mb-4">{contactDetails.title}</p>
                         )}

@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import { ContactWithDetails } from "@/types/contact"
+import { getContactDisplayName, getContactInitials } from "@/utils/contact-name"
 
 // Update the ContactGridProps interface to make selectedContact optional
 interface ContactGridProps {
@@ -27,11 +28,11 @@ export function ContactGrid({ contacts, selectedContact, onSelect }: ContactGrid
         >
           <CardHeader className="flex flex-row items-center gap-4 space-y-0">
             <Avatar className="h-12 w-12">
-              <AvatarImage src={contact.image_url || ''} alt={contact.name} />
-              <AvatarFallback>{contact.name[0]}</AvatarFallback>
+              <AvatarImage src={contact.image_url || undefined} alt={getContactDisplayName(contact)} />
+              <AvatarFallback>{getContactInitials(contact)}</AvatarFallback>
             </Avatar>
             <div className="flex-1">
-              <h3 className="font-semibold">{contact.name}</h3>
+              <h3 className="font-semibold">{getContactDisplayName(contact)}</h3>
               <p className="text-sm text-muted-foreground">{contact.title || 'No title'}</p>
             </div>
           </CardHeader>
