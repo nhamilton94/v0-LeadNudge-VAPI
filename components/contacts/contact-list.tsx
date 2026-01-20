@@ -3,6 +3,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
 import { ContactWithDetails } from "@/types/contact"
+import { getContactDisplayName, getContactInitials } from "@/utils/contact-name"
 
 // Update the ContactListProps interface to make selectedContact optional
 interface ContactListProps {
@@ -25,11 +26,11 @@ export function ContactList({ contacts, selectedContact, onSelect }: ContactList
           onClick={() => onSelect(contact)}
         >
           <Avatar className="h-10 w-10">
-            <AvatarImage src={contact.image_url} alt={contact.name} />
-            <AvatarFallback>{contact.name[0]}</AvatarFallback>
+            <AvatarImage src={contact.image_url || undefined} alt={getContactDisplayName(contact)} />
+            <AvatarFallback>{getContactInitials(contact)}</AvatarFallback>
           </Avatar>
           <div className="flex flex-col">
-            <span className="font-medium">{contact.name}</span>
+            <span className="font-medium">{getContactDisplayName(contact)}</span>
             <span className="text-sm text-muted-foreground">{contact.title || 'No title'}</span>
           </div>
         </button>
