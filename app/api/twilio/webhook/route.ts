@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic"
 import { NextResponse } from "next/server"
 import { createServiceClient } from "@/utils/supabase/service"
 import { validateTwilioWebhook } from "@/lib/twilio-validation"
+import { normalizePhoneNumber, getPhoneSearchVariants } from "@/utils/phone-number"
 import axios from "axios"
 
 interface TwilioWebhookPayload {
@@ -69,59 +70,38 @@ export async function POST(request: Request) {
       )
     }
 
-    // Clean phone numbers (remove +1, spaces, etc.)
-    const cleanFrom = From.replace(/^\+?1?/, '').replace(/\D/g, '')
+    // Normalize phone number to digits-only format for consistent matching
+    const normalizedFrom = normalizePhoneNumber(From)
 
     const supabase = createServiceClient()
-    console.log("cleanFrom", cleanFrom);
-    console.log("From", From);
-    console.log("OR query string:", `phone.eq.${cleanFrom},phone.eq.${From}`);
+    console.log("Original From:", From);
+    console.log("Normalized phone (digits-only):", normalizedFrom);
 
-    // Try to find existing contact by phone number
+    // Find existing contact by normalized phone number
     let { data: contact, error: contactError } = await supabase
       .from("contacts")
       .select("*")
-      .or(`phone.eq.${cleanFrom},phone.eq.${From}`)
+      .eq("phone", normalizedFrom)
       .limit(1)
       .single()
 
     console.log("contact query error:", contactError);
     console.log("contact found:", contact);
 
-    // If no contact found, create one
+    // If no contact found, return an error
     if (!contact) {
-      console.log("No contact found, creating one");
-      const { data: newContact, error: contactError } = await supabase
-        .from("contacts")
-        .insert({
-          name: `Contact ${cleanFrom}`,
-          first_name: null,
-          last_name: null,
-          email: `${cleanFrom}@unknown.com`, // Placeholder email
-          phone: From,
-          lead_source: "sms",
-          lead_status: "new lead",
-          user_id: "00000000-0000-0000-0000-000000000000" // Default user ID - update this
-        })
-        .select()
-        .single()
-
-      if (contactError) {
         console.error("Error creating contact:", contactError)
         return NextResponse.json(
           { error: "Failed to create contact" },
           { status: 500 }
         )
-      }
-      
-      contact = newContact
     }
 
     // Find or create conversation
     let { data: conversation } = await supabase
       .from("conversations")
       .select("*")
-      .eq("phone_number", From)
+      .eq("phone_number", normalizedFrom)
       .eq("contact_id", contact.id)
       .single()
 
@@ -131,7 +111,7 @@ export async function POST(request: Request) {
         .insert({
           contact_id: contact.id,
           user_id: contact.user_id,
-          phone_number: From,
+          phone_number: normalizedFrom, // Store normalized phone number
           status: "active",
           conversation_status: "not_started"
         })
