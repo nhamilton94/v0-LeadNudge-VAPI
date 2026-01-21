@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServiceClient } from "@/utils/supabase/service"
+import { normalizePhoneNumber } from "@/utils/phone-number"
 import axios from "axios"
 
 interface ZillowContactRequest {
@@ -191,6 +192,9 @@ export async function POST(request: NextRequest) {
     const first_name = nameParts[0] || ""
     const last_name = nameParts.slice(1).join(" ") || ""
 
+    // Normalize phone number for consistent storage and matching
+    const normalizedPhone = normalizePhoneNumber(body.phone)
+
     // Parse credit score range
     let creditScoreMin = null, creditScoreMax = null
     if (body.creditScoreRangeJson) {
@@ -222,7 +226,7 @@ export async function POST(request: NextRequest) {
       first_name,
       last_name,
       email: body.email,
-      phone: body.phone,
+      phone: normalizedPhone,
       lead_status: lead_status,
       lead_source,
       organization_id: profileData.organization_id,
