@@ -97,36 +97,20 @@ export async function POST(request: Request) {
         )
     }
 
-    // Find or create conversation
+    // Find conversation
     let { data: conversation } = await supabase
       .from("conversations")
       .select("*")
       .eq("phone_number", normalizedFrom)
       .eq("contact_id", contact.id)
       .single()
-
+    // If no conversation found, return an error
     if (!conversation) {
-      const { data: newConversation, error: convError } = await supabase
-        .from("conversations")
-        .insert({
-          contact_id: contact.id,
-          user_id: contact.user_id,
-          phone_number: normalizedFrom, // Store normalized phone number
-          status: "active",
-          conversation_status: "not_started"
-        })
-        .select()
-        .single()
-
-      if (convError) {
-        console.error("Error creating conversation:", convError)
+        console.error("No conversation found for phone number and contact", normalizedFrom, contact.id)
         return NextResponse.json(
-          { error: "Failed to create conversation" },
+          { error: "No conversation found for phone number and contact" },
           { status: 500 }
-        )
-      }
-
-      conversation = newConversation
+        ) 
     }
 
     // Store the inbound message
@@ -175,35 +159,11 @@ export async function POST(request: Request) {
       console.log("Message will be stored but automation is paused/ended")
     } else {
       // If no Botpress conversation exists, create one by calling your integration
-      try {
-        console.log("Creating Botpress conversation");
-        const botpressIntegrationUrl = process.env.BOTPRESS_INTEGRATION_URL
-        if (botpressIntegrationUrl) {
-          const response = await axios.post(botpressIntegrationUrl, {
-            userId: contact.id,
-            conversationId: conversation.id,
-            text: Body
-          })
-          
-          // The integration response contains the message object with Botpress conversation details
-          if (response.status === 200) {
-            // Update the conversation with Botpress conversation ID
-            // Note: You'd need to extract the actual Botpress conversation ID from the response
-            console.log("Botpress conversation created");
-            const botpressResponse = response.data
-            console.log("Botpress conversation response", botpressResponse);
-            await supabase
-              .from("conversations")
-              .update({
-                botpress_conversation_id: `bp_conv_${conversation.id}`, // This would be from botpressResponse
-                botpress_user_id: `bp_user_${contact.id}` // This would be from botpressResponse
-              })
-              .eq("id", conversation.id)
-          }
-        }
-      } catch (error) {
-        console.error("Error setting up Botpress conversation:", error)
-      }
+      console.error("No Botpress conversation exists for phone number and contact", normalizedFrom, contact.id)
+      return NextResponse.json(
+        { error: "No Botpress conversation exists for phone number and contact" },
+        { status: 500 }
+      )
     }
 
     // Return TwiML response (empty response means no auto-reply)
