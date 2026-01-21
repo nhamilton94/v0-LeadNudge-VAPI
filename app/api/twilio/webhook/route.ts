@@ -99,9 +99,8 @@ export async function POST(request: Request) {
           last_name: null,
           email: `${cleanFrom}@unknown.com`, // Placeholder email
           phone: From,
-          status: "new",
           lead_source: "sms",
-          lead_status: "new",
+          lead_status: "new lead",
           user_id: "00000000-0000-0000-0000-000000000000" // Default user ID - update this
         })
         .select()
