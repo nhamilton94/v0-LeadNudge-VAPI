@@ -88,33 +88,13 @@ export async function POST(request: Request) {
     console.log("contact query error:", contactError);
     console.log("contact found:", contact);
 
-    // If no contact found, create one
+    // If no contact found, return an error
     if (!contact) {
-      console.log("No contact found, creating one");
-      const { data: newContact, error: contactError } = await supabase
-        .from("contacts")
-        .insert({
-          name: `Contact ${normalizedFrom}`,
-          first_name: null,
-          last_name: null,
-          email: `${normalizedFrom}@unknown.com`, // Placeholder email
-          phone: normalizedFrom, // Store normalized phone number (digits-only)
-          lead_source: "sms",
-          lead_status: "new lead",
-          user_id: "00000000-0000-0000-0000-000000000000" // Default user ID - update this
-        })
-        .select()
-        .single()
-
-      if (contactError) {
         console.error("Error creating contact:", contactError)
         return NextResponse.json(
           { error: "Failed to create contact" },
           { status: 500 }
         )
-      }
-      
-      contact = newContact
     }
 
     // Find or create conversation
