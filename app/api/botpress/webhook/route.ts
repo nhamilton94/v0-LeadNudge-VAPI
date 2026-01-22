@@ -38,7 +38,9 @@ export async function POST(request: Request) {
       .eq("botpress_conversation_id", conversationId)
       .single()
     
+    
     // If not found by botpress_conversation_id, try by database ID (fallback)
+    /*
     if (conversationError && !conversationId.startsWith("bp_conv_")) {
       const { data: fallbackConversation, error: fallbackError } = await supabase
         .from("conversations")
@@ -48,7 +50,7 @@ export async function POST(request: Request) {
       
       conversation = fallbackConversation
       conversationError = fallbackError
-    }
+    }*/
 
     console.log("Conversation query result:", { conversation, conversationError })
 
