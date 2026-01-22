@@ -1661,3 +1661,6 @@ export const Constants = {
     },
   },
 } as const
+
+// Export commonly used types for easier imports
+export type Message = Database['public']['Tables']['messages']['Row']

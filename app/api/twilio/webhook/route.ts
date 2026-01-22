@@ -103,6 +103,7 @@ export async function POST(request: Request) {
       .select("*")
       .eq("phone_number", normalizedFrom)
       .eq("contact_id", contact.id)
+      .limit(1)
       .single()
     // If no conversation found, return an error
     if (!conversation) {

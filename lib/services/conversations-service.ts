@@ -93,7 +93,27 @@ export async function getConversations(params: ConversationListParams): Promise<
   }
 
   try {
+    // First, get conversation IDs that have at least one message
+    const { data: conversationsWithMessages } = await supabase
+      .from('messages')
+      .select('conversation_id')
+      .not('conversation_id', 'is', null)
+    
+    const conversationIdsWithMessages = [...new Set(conversationsWithMessages?.map(m => m.conversation_id) || [])]
+    
+    if (conversationIdsWithMessages.length === 0) {
+      // No conversations have messages, return empty result
+      return {
+        conversations: [],
+        total: 0,
+        page,
+        limit,
+        hasMore: false
+      }
+    }
+
     // Build the query using base conversations table with joins
+    // Only include conversations that have at least one message
     let query = supabase
       .from('conversations')
       .select(`
@@ -106,6 +126,7 @@ export async function getConversations(params: ConversationListParams): Promise<
         )
       `, { count: 'exact' })
       .eq('user_id', userId)
+      .in('id', conversationIdsWithMessages)
 
     // Add search filter if provided - search in conversation phone and joined contact fields
     if (search.trim()) {
