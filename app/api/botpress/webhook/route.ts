@@ -35,13 +35,13 @@ export async function POST(request: Request) {
     let { data: conversation, error: conversationError } = await supabase
       .from("conversations")
       .select("*")
-      .eq("id", conversationId)
+      .eq("botpress_conversation_id", conversationId)
       .single()
     
     
-    // If not found by botpress_conversation_id, try by database ID (fallback)
-    /*
-    if (conversationError && !conversationId.startsWith("bp_conv_")) {
+    //If not found by botpress_conversation_id, try by database ID (fallback)
+    
+    if (conversationError && !conversationId.startsWith("conv_")) {
       const { data: fallbackConversation, error: fallbackError } = await supabase
         .from("conversations")
         .select("*")
@@ -50,7 +50,7 @@ export async function POST(request: Request) {
       
       conversation = fallbackConversation
       conversationError = fallbackError
-    }*/
+    }
 
     console.log("Conversation query result:", { conversation, conversationError })
 
