@@ -223,16 +223,16 @@ export async function POST(request: NextRequest) {
       await client.updateConversation({ 
         id: botpressConversation.id, 
         tags: { 
-          'contact:email': contact.email, 
-          'contact:hostEmail': userProfile.email, 
-          'contact:firstName': contact.first_name, 
-          'contact:lastName': contact.last_name, 
-          'contact:fullName': getContactDisplayName(contact), 
-          'contact:phone': contact.phone || '', 
-          'contact:id': contact.id.toString() 
+          email: contact.email, 
+          hostEmail: userProfile.email, 
+          firstName: contact.first_name, 
+          lastName: contact.last_name, 
+          fullName: getContactDisplayName(contact), 
+          phone: contact.phone || '', 
+          id: contact.id.toString() 
         } 
       })
-      
+
       /*await client.setState({
         type: "conversation",
         id: botpressConversation.id,
