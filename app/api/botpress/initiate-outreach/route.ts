@@ -257,7 +257,8 @@ export async function POST(request: NextRequest) {
           phone: contact.phone,
           email: contact.email,
           contactId: contact.id,
-          hostEmail: userProfile.email
+          hostEmail: userProfile.email,
+          trigger: botpressConversation.id
         },
         conversationId: botpressConversation.id,
         userId: user.id
