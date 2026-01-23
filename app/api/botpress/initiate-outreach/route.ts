@@ -233,7 +233,21 @@ export async function POST(request: NextRequest) {
           id: contact.id.toString() 
         } 
       })*/
-
+      await client.createEvent({
+        type: "custom",
+        payload: {
+          firstName: contact.first_name,
+          lastName: contact.last_name,
+          fullName: getContactDisplayName(contact),
+          phone: contact.phone,
+          email: contact.email,
+          contactId: contact.id,
+          hostEmail: userProfile.email
+        },
+        conversationId: botpressConversation.id,
+        userId: user.id
+      })
+/*
       await client.setState({
         type: "conversation",
         id: botpressConversation.id,
@@ -247,7 +261,7 @@ export async function POST(request: NextRequest) {
           contactId: contact.id,
           hostEmail: userProfile.email
         }
-      })
+      })*/
 
       // 5. Send the first message as the bot
       const initialMessage = `Hi, is this ${contact.first_name || getContactDisplayName(contact)}? I'm Alex, a virtual assistant for 149 Pennsylvania Avenue. I saw you were interested in the property. Would you like to schedule a tour?`
