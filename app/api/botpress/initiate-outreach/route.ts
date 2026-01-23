@@ -251,7 +251,13 @@ export async function POST(request: NextRequest) {
       await client.createEvent({
         type: "custom",
         payload: {
-          trigger: 'contact_initialized'
+          firstName: contact.first_name,
+          lastName: contact.last_name,
+          fullName: getContactDisplayName(contact),
+          phone: contact.phone,
+          email: contact.email,
+          contactId: contact.id,
+          hostEmail: userProfile.email
         },
         conversationId: botpressConversation.id,
         userId: user.id
