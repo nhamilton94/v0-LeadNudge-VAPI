@@ -219,7 +219,21 @@ export async function POST(request: NextRequest) {
       })
 
       // 4. Set conversation state with contact context including host email
-      await client.setState({
+      // In your API route (after creating the conversation) 
+      await client.updateConversation({ 
+        id: botpressConversation.id, 
+        tags: { 
+          'contact:email': contact.email, 
+          'contact:hostEmail': userProfile.email, 
+          'contact:firstName': contact.first_name, 
+          'contact:lastName': contact.last_name, 
+          'contact:fullName': getContactDisplayName(contact), 
+          'contact:phone': contact.phone || '', 
+          'contact:id': contact.id.toString() 
+        } 
+      })
+      
+      /*await client.setState({
         type: "conversation",
         id: botpressConversation.id,
         name: "contactContext",
@@ -232,7 +246,7 @@ export async function POST(request: NextRequest) {
           contactId: contact.id,
           hostEmail: userProfile.email
         }
-      })
+      })*/
 
       // 5. Send the first message as the bot
       const initialMessage = `Hi, is this ${contact.first_name || getContactDisplayName(contact)}? I'm Alex, a virtual assistant for 149 Pennsylvania Avenue. I saw you were interested in the property. Would you like to schedule a tour?`
