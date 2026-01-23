@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     let { data: conversation, error: conversationError } = await supabase
       .from("conversations")
       .select("*")
-      .eq("botpress_conversation_id", conversationId)
+      .eq("id", conversationId)
       .single()
     
     
