@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic"
 import { NextResponse } from "next/server"
 import { getGoogleAccessToken } from "@/lib/google-auth"
-import { createServerSupabaseClient } from "@/lib/supabase-server"
+import { createServiceClient } from "@/utils/supabase/service"
 import { authenticateApiRequest } from "@/lib/auth/api-middleware"
 
 export async function GET(request: Request) {
@@ -30,7 +30,7 @@ export async function GET(request: Request) {
 
     // Get a valid access token for the user associated with the email
     // First, find the user ID for the provided email
-    const supabase = createServerSupabaseClient()
+    const supabase = createServiceClient()
     const { data: userData, error: userError } = await supabase
       .from("profiles")
       .select("id")
