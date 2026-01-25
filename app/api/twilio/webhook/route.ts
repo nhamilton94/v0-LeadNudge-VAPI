@@ -148,7 +148,7 @@ export async function POST(request: Request) {
       try {
         await axios.post(`${process.env.BOTPRESS_WEBHOOK_URL}`, {
           userId: contact.id,
-          conversationId: conversation.botpress_conversation_id,
+          conversationId: conversation.id,
           text: Body
         })
       } catch (botpressError) {
