@@ -69,34 +69,63 @@ export async function GET(request: Request) {
         } = await supabase.auth.getUser()
 
         if (user) {
-          console.log("Storing OAuth tokens for user:", user.id)
+          console.log("=== ENHANCED OAUTH TOKEN DEBUG ===")
+          console.log("User ID:", user.id)
+          console.log("Provider token length:", provider_token?.length || 0)
+          console.log("Provider refresh token available:", !!provider_refresh_token)
+          console.log("Provider refresh token length:", provider_refresh_token?.length || 0)
+          
           // Calculate token expiration (Google access tokens typically expire in 1 hour)
           const expiresAt = new Date()
           expiresAt.setHours(expiresAt.getHours() + 1)
+          
+          console.log("Token expires at:", expiresAt.toISOString())
 
           // Store tokens in database
-          const { error: insertError } = await supabase.from("oauth2.user_oauth_tokens").upsert(
-            {
-              user_id: user.id,
-              provider: "google",
-              access_token: provider_token,
-              refresh_token: provider_refresh_token || "",
-              expires_at: expiresAt.toISOString(),
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            },
+          const tokenData = {
+            user_id: user.id,
+            provider: "google",
+            access_token: provider_token,
+            refresh_token: provider_refresh_token || "",
+            expires_at: expiresAt.toISOString(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }
+          
+          console.log("Attempting to store token data:", {
+            user_id: tokenData.user_id,
+            provider: tokenData.provider,
+            access_token_length: tokenData.access_token?.length || 0,
+            refresh_token_length: tokenData.refresh_token?.length || 0,
+            expires_at: tokenData.expires_at
+          })
+
+          const { error: insertError, data: insertResult } = await supabase.from("oauth2.user_oauth_tokens").upsert(
+            tokenData,
             {
               onConflict: "user_id, provider",
             },
-          )
+          ).select()
 
           if (insertError) {
-            console.error("Error storing OAuth tokens:", JSON.stringify(insertError))
+            console.error("=== TOKEN STORAGE ERROR ===")
+            console.error("Full error object:", insertError)
+            console.error("Error message:", insertError.message)
+            console.error("Error details:", insertError.details)
+            console.error("Error hint:", insertError.hint)
+            console.error("Error code:", insertError.code)
             // Continue anyway since the user is authenticated
           } else {
+            console.log("=== TOKEN STORAGE SUCCESS ===")
+            console.log("Insert result:", insertResult)
             console.log("OAuth tokens stored successfully")
           }
+          console.log("=== END OAUTH TOKEN DEBUG ===")
+        } else {
+          console.error("No user found in session after OAuth")
         }
+      } else {
+        console.error("No provider_token available from OAuth session")
       }
     } else {
       console.error("No session created after code exchange")
