@@ -100,7 +100,7 @@ export async function GET(request: Request) {
             expires_at: tokenData.expires_at
           })
 
-          const { error: insertError, data: insertResult } = await supabase.from("oauth2.user_oauth_tokens").upsert(
+          const { error: insertError, data: insertResult } = await supabase.schema("oauth2").from("user_oauth_tokens").upsert(
             tokenData,
             {
               onConflict: "user_id, provider",
