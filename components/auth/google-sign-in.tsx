@@ -34,7 +34,7 @@ export default function GoogleSignIn() {
           scopes: "email profile https://www.googleapis.com/auth/calendar",
           queryParams: {
             access_type: "offline",
-            //prompt: "consent",
+            prompt: "consent",
           },
         },
       })
