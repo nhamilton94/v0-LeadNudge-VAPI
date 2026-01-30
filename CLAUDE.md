@@ -10,7 +10,7 @@ Always use Context7 MCP when needing library/API documentation, code generation,
 
 This is a Next.js 14 real estate dashboard application with full-stack authentication and database integration. The main application is located in the `v0-LeadNudge-VAPI/` directory.
 
-The `lead-nudge-crm-relay/` directory contains files necessary to create an integration between botpress and The main application located in the `v0-LeadNudge-VAPI/` directory.
+The `lead-nudge-crm-relay/` directory contains files necessary to create an integration between Botpress and the main application located in the `v0-LeadNudge-VAPI/` directory.
 
 `lead-nudge-crm-relay/integrations.definition.ts`: Contains the integration definition. It exports a data structure that describes the integration—what it is, what it can do, and how it can be used. This includes the integration's name, version, actions, events, channels, and other capabilities.
 
@@ -25,7 +25,7 @@ The `lead-nudge-crm-relay/` directory contains files necessary to create an inte
 - **Authentication Flow**: Custom middleware-based auth with OAuth callback handling
 - **UI Components**: shadcn/ui components with Radix UI primitives and Tailwind CSS
 - **Email Integration**: React Email templates with Resend service
-- **Botpress Integration**: Contains files and copmonents which implmenent and define an integration between our application and botpress
+- **Botpress Integration**: Contains files and components which implement and define an integration between our application and Botpress
 
 ### Directory Structure
 
@@ -70,7 +70,7 @@ cd v0-LeadNudge-VAPI
 
 ### Package Management
 - Uses `npm` as the package manager
-- Lock file: `npm-lock.yaml`
+- Lock files: `package-lock.json` and `yarn.lock` (both present)
 
 ## Configuration Notes
 
