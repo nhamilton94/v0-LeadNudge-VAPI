@@ -35,6 +35,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const { data: property } = await supabase
+      .from("properties")
+      .select("*")
+      .eq("id", contact.interested_property) 
+      .single()
+
     // Get the user profile who owns this contact
     const { data: userProfile, error: userProfileError } = await supabase
       .from("profiles")
@@ -258,7 +264,8 @@ export async function POST(request: NextRequest) {
           email: contact.email,
           contactId: contact.id,
           hostEmail: userProfile.email,
-          trigger: botpressConversation.id
+          trigger: botpressConversation.id,
+          property: property.address
         },
         conversationId: botpressConversation.id,
         userId: user.id
